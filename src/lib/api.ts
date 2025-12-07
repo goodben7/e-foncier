@@ -1,4 +1,4 @@
-import type { Parcel, ParcelInsert, Request, RequestInsert, Document } from '../types/database'
+import type { Parcel, ParcelInsert, ParcelUpdate, Request, RequestInsert, Document } from '../types/database'
 
 export type ExtendedStats = {
   parcelsThisMonth: number
@@ -72,6 +72,15 @@ export async function uploadParcelDocuments(parcelId: string, files: File[], typ
   const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/documents`, {
     method: 'POST',
     body: fd,
+  })
+  return handleResponse(res)
+}
+
+export async function updateParcel(id: string, payload: ParcelUpdate): Promise<Parcel> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   })
   return handleResponse(res)
 }

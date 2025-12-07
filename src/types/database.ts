@@ -207,4 +207,5 @@ export type Dispute = Database['public']['Tables']['disputes']['Row']
 export type Request = Database['public']['Tables']['requests']['Row']
 
 export type ParcelInsert = Database['public']['Tables']['parcels']['Insert']
+export type ParcelUpdate = Database['public']['Tables']['parcels']['Update']
 export type RequestInsert = Database['public']['Tables']['requests']['Insert']

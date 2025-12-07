@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "server": "node server/index.js",
-    "dev:all": "concurrently \"npm run server\" \"npm run dev\""
+    "dev:all": "concurrently \"npm run server\" \"npm run dev\"",
+    "seed": "sh -c 'curl -s -X POST http://localhost:${PORT:-3000}/api/seed -H \"Content-Type: application/json\" -d \"{\\\"reset\\\":true,\\\"parcels\\\":30,\\\"requests\\\":20,\\\"documents\\\":24}\"'"
   },
   "dependencies": {
     "better-sqlite3": "^9.6.0",

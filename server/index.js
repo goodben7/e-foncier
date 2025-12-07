@@ -86,6 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_parcel_reference ON requests(parcel_refe
 `)
 
 const parcelColumns = db.prepare("PRAGMA table_info(parcels)").all().map(r => r.name)
+console.log('parcels columns count:', parcelColumns.length, parcelColumns)
 function ensureColumn(name, ddl) {
   if (!parcelColumns.includes(name)) {
     db.exec(`ALTER TABLE parcels ADD COLUMN ${ddl}`)
@@ -119,9 +120,11 @@ ensureColumn('charges', 'TEXT')
 ensureColumn('litigation', 'TEXT')
 
 const docColumns = db.prepare("PRAGMA table_info(documents)").all().map(r => r.name)
+console.log('documents columns:', docColumns)
 function ensureDocColumn(name, ddl) {
   if (!docColumns.includes(name)) {
-    db.exec(`ALTER TABLE documents ADD COLUMN ${ddl}`)
+    db.exec(`ALTER TABLE documents ADD COLUMN ${name} ${ddl}`)
+    docColumns.push(name)
   }
 }
 ensureDocColumn('mime', 'TEXT NOT NULL DEFAULT ""')
@@ -216,6 +219,47 @@ app.post('/api/parcels', (req, res) => {
   }
 })
 
+app.put('/api/parcels/:id', (req, res) => {
+  const id = req.params.id
+  const existing = db.prepare('SELECT * FROM parcels WHERE id = ?').get(id)
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+  const b = req.body || {}
+  const now = new Date().toISOString()
+  const colValuesMap = { ...existing }
+  for (const k of Object.keys(b)) {
+    if (parcelColumns.includes(k)) colValuesMap[k] = b[k]
+  }
+  const required = [
+    'parcel_number','province','territory_or_city','commune_or_sector','quartier_or_cheflieu','avenue',
+    'area','status','land_use','acquisition_type',
+    'acquisition_act_ref','title_date','owner_name','owner_id_number'
+  ]
+  for (const k of required) {
+    const v = colValuesMap[k]
+    if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) {
+      return res.status(400).json({ error: `Missing field: ${k}` })
+    }
+  }
+  colValuesMap.updated_at = now
+  const updatable = parcelColumns.filter(c => c !== 'id' && c !== 'created_at')
+  const sql = `UPDATE parcels SET ${updatable.map(c => `${c} = ?`).join(', ')} WHERE id = ?`
+  const vals = updatable.map(c => {
+    if (c === 'gps_lat') return typeof colValuesMap[c] === 'number' ? colValuesMap[c] : 0
+    if (c === 'gps_long') return typeof colValuesMap[c] === 'number' ? colValuesMap[c] : 0
+    return colValuesMap[c] === undefined ? null : colValuesMap[c]
+  })
+  try {
+    db.prepare(sql).run(...vals, id)
+    const row = db.prepare('SELECT * FROM parcels WHERE id = ?').get(id)
+    res.json(row)
+  } catch (e) {
+    if (String(e.message || '').includes('UNIQUE')) {
+      return res.status(409).json({ error: 'Reference already exists' })
+    }
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.post('/api/parcels/:id/documents', upload.array('files', 12), (req, res) => {
   const parcelId = req.params.id
   const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
@@ -258,7 +302,8 @@ app.post('/api/requests', (req, res) => {
     const row = db.prepare('SELECT * FROM requests WHERE id = ?').get(id)
     res.status(201).json(row)
   } catch (e) {
-    res.status(500).json({ error: 'Server error' })
+    console.error(e)
+    res.status(500).json({ error: String(e && e.message ? e.message : 'Server error') })
   }
 })
 
@@ -326,7 +371,8 @@ app.get('/api/stats/extended', (req, res) => {
       pendingRequestsAvgDays,
     })
   } catch (e) {
-    res.status(500).json({ error: 'Server error' })
+    console.error(e)
+    res.status(500).json({ error: String((e && e.message) ? e.message : 'Server error') })
   }
 })
 
@@ -393,21 +439,51 @@ app.post('/api/seed', (req, res) => {
       const surveyorLicense = `AGR-${randInt(10000, 99999)}`
       const planRef = `Feuille ${randInt(1, 50)} / Section ${randInt(1, 20)}`
 
-      db.prepare(
-        `INSERT INTO parcels (
-          id, reference, parcel_number, province, territory_or_city, commune_or_sector, quartier_or_cheflieu, avenue,
-          gps_lat, gps_long, area, location, status, land_use, certificate_number, issuing_authority, acquisition_type,
-          acquisition_act_ref, title_date, owner_name, owner_id_number, company_name, rccm, nif, surveying_pv_ref,
-          surveyor_name, surveyor_license, cadastral_plan_ref, servitudes, charges, litigation, created_at, updated_at
-        ) VALUES (
-          ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-        )`
-      ).run(
-        id, ref, `F-${randInt(1, 999)}/SEC-${randInt(1, 99)}/P-${randInt(1, 9999)}`, prov, city, commune, quartier, avenue,
-        gpsLat, gpsLong, area, null, status, land, certNum, issuingAuth, acquisitionType,
-        acquisitionActRef, titleDate, ownerName, ownerIdNumber, null, null, null, pvRef,
-        surveyorName, surveyorLicense, planRef, null, null, status === 'En litige' ? 'Litige signalé' : null, now, now
-      )
+      try {
+        const colValuesMap = {
+          id,
+          reference: ref,
+          parcel_number: `F-${randInt(1, 999)}/SEC-${randInt(1, 99)}/P-${randInt(1, 9999)}`,
+          province: prov,
+          territory_or_city: city,
+          commune_or_sector: commune,
+          quartier_or_cheflieu: quartier,
+          avenue,
+          gps_lat: gpsLat,
+          gps_long: gpsLong,
+          area,
+          location: null,
+          status,
+          land_use: land,
+          certificate_number: certNum,
+          issuing_authority: issuingAuth,
+          acquisition_type: acquisitionType,
+          acquisition_act_ref: acquisitionActRef,
+          title_date: titleDate,
+          owner_name: ownerName,
+          owner_id_number: ownerIdNumber,
+          company_name: null,
+          rccm: null,
+          nif: null,
+          surveying_pv_ref: pvRef,
+          surveyor_name: surveyorName,
+          surveyor_license: surveyorLicense,
+          cadastral_plan_ref: planRef,
+          servitudes: null,
+          charges: null,
+          litigation: status === 'En litige' ? 'Litige signalé' : null,
+          created_at: now,
+          updated_at: now,
+        }
+        const sql = `INSERT INTO parcels (${parcelColumns.join(',')}) VALUES (${parcelColumns.map(() => '?').join(',')})`
+        const parcelInsertVals = parcelColumns.map((c) => colValuesMap[c])
+        if (parcelInsertVals.length !== parcelColumns.length) {
+          throw new Error(`Parcel values count mismatch: ${parcelInsertVals.length} for ${parcelColumns.length} columns`)
+        }
+        db.prepare(sql).run(...parcelInsertVals)
+      } catch (e) {
+        throw new Error('Parcel seed failed: ' + String((e && e.message) ? e.message : e))
+      }
 
       parcelIds.push(id)
       parcelRefs.push(ref)
@@ -422,9 +498,13 @@ app.post('/api/seed', (req, res) => {
       const d = new Date()
       d.setDate(d.getDate() - randInt(0, 60))
       const created = d.toISOString()
-      db.prepare(
-        'INSERT INTO requests (id, citizen_name, parcel_reference, document_type, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(id, citizen, pref, dtype, status, created, created)
+      try {
+        db.prepare(
+          'INSERT INTO requests (id, citizen_name, parcel_reference, document_type, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+        ).run(id, citizen, pref, dtype, status, created, created)
+      } catch (e) {
+        throw new Error('Request seed failed: ' + String((e && e.message) ? e.message : e))
+      }
     }
 
     for (let i = 0; i < nDocuments; i++) {
@@ -435,14 +515,19 @@ app.post('/api/seed', (req, res) => {
       const mime = isPdf ? 'application/pdf' : 'image/jpeg'
       const fname = isPdf ? `seed-${id.slice(0,8)}.pdf` : `seed-${id.slice(0,8)}.jpg`
       const pathRel = path.join('uploads', fname)
-      db.prepare(
-        'INSERT INTO documents (id, parcel_id, type, mime, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(id, pid, dtype, mime, pathRel, now)
+      try {
+        db.prepare(
+          'INSERT INTO documents (id, parcel_id, type, mime, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+        ).run(id, pid, dtype, mime, pathRel, now)
+      } catch (e) {
+        throw new Error('Document seed failed: ' + String((e && e.message) ? e.message : e))
+      }
     }
 
     res.json({ parcels: nParcels, requests: nRequests, documents: nDocuments })
   } catch (e) {
-    res.status(500).json({ error: 'Server error' })
+    console.error(e)
+    res.status(500).json({ error: String((e && e.message) ? e.message : 'Server error') })
   }
 })
 
