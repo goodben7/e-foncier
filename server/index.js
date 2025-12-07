@@ -77,12 +77,28 @@ CREATE TABLE IF NOT EXISTS requests (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS parcel_history (
+  id TEXT PRIMARY KEY,
+  parcel_id TEXT NOT NULL,
+  changes TEXT NOT NULL,
+  changed_at TEXT NOT NULL,
+  user TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS parcel_notes (
+  id TEXT PRIMARY KEY,
+  parcel_id TEXT NOT NULL,
+  note TEXT NOT NULL,
+  author TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_parcels_reference ON parcels(reference);
 CREATE INDEX IF NOT EXISTS idx_parcels_status ON parcels(status);
 CREATE INDEX IF NOT EXISTS idx_documents_parcel_id ON documents(parcel_id);
 CREATE INDEX IF NOT EXISTS idx_disputes_parcel_id ON disputes(parcel_id);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
 CREATE INDEX IF NOT EXISTS idx_requests_parcel_reference ON requests(parcel_reference);
+CREATE INDEX IF NOT EXISTS idx_history_parcel_id ON parcel_history(parcel_id);
+CREATE INDEX IF NOT EXISTS idx_notes_parcel_id ON parcel_notes(parcel_id);
 `)
 
 const parcelColumns = db.prepare("PRAGMA table_info(parcels)").all().map(r => r.name)
@@ -256,6 +272,70 @@ app.put('/api/parcels/:id', (req, res) => {
     if (String(e.message || '').includes('UNIQUE')) {
       return res.status(409).json({ error: 'Reference already exists' })
     }
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/parcels/:id/history', (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const rows = db.prepare('SELECT * FROM parcel_history WHERE parcel_id = ? ORDER BY datetime(changed_at) DESC').all(parcelId)
+  res.json(rows)
+})
+
+app.post('/api/parcels/:id/history', (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const b = req.body || {}
+  const now = new Date().toISOString()
+  const id = randomUUID()
+  const user = typeof b.user === 'string' && b.user.trim() ? b.user.trim() : 'Agent'
+  let changesStr
+  try {
+    if (typeof b.changes === 'string') {
+      changesStr = b.changes
+    } else {
+      changesStr = JSON.stringify(b.changes || {})
+    }
+  } catch (_e) {
+    return res.status(400).json({ error: 'Invalid changes payload' })
+  }
+  try {
+    db.prepare('INSERT INTO parcel_history (id, parcel_id, changes, changed_at, user) VALUES (?, ?, ?, ?, ?)')
+      .run(id, parcelId, changesStr, now, user)
+    const row = db.prepare('SELECT * FROM parcel_history WHERE id = ?').get(id)
+    res.status(201).json(row)
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.get('/api/parcels/:id/notes', (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const rows = db.prepare('SELECT * FROM parcel_notes WHERE parcel_id = ? ORDER BY datetime(created_at) DESC').all(parcelId)
+  res.json(rows)
+})
+
+app.post('/api/parcels/:id/notes', (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const b = req.body || {}
+  const note = typeof b.note === 'string' && b.note.trim() ? b.note.trim() : ''
+  const author = typeof b.author === 'string' && b.author.trim() ? b.author.trim() : 'Agent'
+  if (!note) return res.status(400).json({ error: 'Note required' })
+  const now = new Date().toISOString()
+  const id = randomUUID()
+  try {
+    db.prepare('INSERT INTO parcel_notes (id, parcel_id, note, author, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(id, parcelId, note, author, now)
+    const row = db.prepare('SELECT * FROM parcel_notes WHERE id = ?').get(id)
+    res.status(201).json(row)
+  } catch (e) {
     res.status(500).json({ error: 'Server error' })
   }
 })

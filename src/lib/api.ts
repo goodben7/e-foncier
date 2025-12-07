@@ -84,3 +84,31 @@ export async function updateParcel(id: string, payload: ParcelUpdate): Promise<P
   })
   return handleResponse(res)
 }
+
+export async function getParcelHistory(parcelId: string): Promise<{ id: string; parcel_id: string; changes: string; changed_at: string; user: string }[]> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/history`)
+  return handleResponse(res)
+}
+
+export async function addParcelHistory(parcelId: string, changes: unknown, user: string): Promise<{ id: string; parcel_id: string; changes: string; changed_at: string; user: string }> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/history`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ changes, user }),
+  })
+  return handleResponse(res)
+}
+
+export async function getParcelNotes(parcelId: string): Promise<{ id: string; parcel_id: string; note: string; author: string; created_at: string }[]> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/notes`)
+  return handleResponse(res)
+}
+
+export async function addParcelNote(parcelId: string, note: string, author: string): Promise<{ id: string; parcel_id: string; note: string; author: string; created_at: string }> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/notes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note, author }),
+  })
+  return handleResponse(res)
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, ParcelUpdate } from '../types/database';
-import { MapPin, Maximize2, User, FileText, Hash, X, ChevronLeft, ChevronRight, Save, Edit } from 'lucide-react';
+import { MapPin, Maximize2, User, FileText, Hash, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag } from 'lucide-react';
 
 export default function ParcelsList() {
   const [parcels, setParcels] = useState<Parcel[]>([]);
@@ -13,6 +13,12 @@ export default function ParcelsList() {
   const [form, setForm] = useState<ParcelUpdate>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [history, setHistory] = useState<{ id: string; parcel_id: string; changes: string; changed_at: string; user: string }[]>([]);
+  const [notes, setNotes] = useState<{ id: string; parcel_id: string; note: string; author: string; created_at: string }[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportText, setReportText] = useState('');
 
   const loadParcels = useCallback(async () => {
     try {
@@ -101,6 +107,31 @@ export default function ParcelsList() {
 
   const setField = (k: keyof ParcelUpdate, v: unknown) => {
     setForm(prev => ({ ...prev, [k]: v }));
+    let msg = '';
+    if (k === 'area') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n <= 0) msg = 'Superficie invalide';
+    }
+    if (k === 'gps_lat') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < -90 || n > 90) msg = 'Latitude invalide';
+    }
+    if (k === 'gps_long') {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < -180 || n > 180) msg = 'Longitude invalide';
+    }
+    setErrors(prev => ({ ...prev, [k as string]: msg }));
+  };
+
+  const hasChanges = () => {
+    if (!selected) return false;
+    const keys = Object.keys(form);
+    for (const k of keys) {
+      const fv = (form as Record<string, unknown>)[k];
+      const sv = (selected as Record<string, unknown>)[k];
+      if (fv !== sv) return true;
+    }
+    return false;
   };
 
   const validateRequired = () => {
@@ -122,6 +153,16 @@ export default function ParcelsList() {
     setSaving(true);
     try {
       const updated = await api.updateParcel(selected.id, form);
+      const changes: Record<string, { from: unknown; to: unknown }> = {};
+      const keys = Object.keys(form);
+      for (const k of keys) {
+        const fv = (form as Record<string, unknown>)[k];
+        const sv = (selected as Record<string, unknown>)[k];
+        if (fv !== sv) changes[k] = { from: sv, to: fv };
+      }
+      if (Object.keys(changes).length > 0) {
+        try { await api.addParcelHistory(selected.id, changes, 'Agent'); } catch { void 0 }
+      }
       setParcels(prev => prev.map(p => (p.id === updated.id ? updated : p)));
       closeModal();
     } catch (e) {
@@ -131,6 +172,13 @@ export default function ParcelsList() {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (open && selected) {
+      api.getParcelHistory(selected.id).then(setHistory).catch(() => setHistory([]));
+      api.getParcelNotes(selected.id).then(setNotes).catch(() => setNotes([]));
+    }
+  }, [open, selected]);
 
   if (loading) {
     return (
@@ -264,18 +312,36 @@ export default function ParcelsList() {
       {open && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="relative bg-white w-full max-w-3xl rounded-xl shadow-2xl border border-gray-200">
+          <div className="relative bg-white w-full max-w-[95vw] sm:max-w-3xl rounded-xl shadow-2xl border border-gray-200">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <div className="flex items-center gap-2">
                 <Edit size={18} className="text-emerald-600" />
                 <h3 className="text-lg font-bold text-gray-900">Parcelle {selected.reference}</h3>
               </div>
-              <button onClick={closeModal} className="p-2 rounded hover:bg-gray-100">
+              <button onClick={() => { if (!hasChanges() || window.confirm('Êtes-vous sûr de vouloir annuler ?')) closeModal(); }} className="p-2 rounded hover:bg-gray-100" aria-label="Fermer">
                 <X size={20} className="text-gray-500" />
               </button>
             </div>
 
             <div className="px-6 py-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                  <Tag size={16} className="text-emerald-700" />
+                  <span className="text-sm text-gray-800">{selected.reference}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                  <FileText size={16} className="text-gray-600" />
+                  <span className="text-sm text-gray-800">{form.parcel_number || selected.parcel_number}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                  <Maximize2 size={16} className="text-gray-600" />
+                  <span className="text-sm text-gray-800">{(form.area ?? selected.area)?.toLocaleString()} m²</span>
+                </div>
+                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${getStatusColor(form.status || selected.status)}`}>
+                  <AlertCircle size={16} />
+                  <span className="text-sm">{form.status || selected.status}</span>
+                </div>
+              </div>
               <div className="flex items-center justify-between mb-4">
                 <span className="text-sm font-medium text-gray-700">Étape {step + 1} / {steps.length} — {steps[step]}</span>
                 <div className="flex gap-2">
@@ -286,6 +352,9 @@ export default function ParcelsList() {
                     Suiv. <ChevronRight size={16} />
                   </button>
                 </div>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded-full mb-4">
+                <div className="h-2 bg-emerald-600 rounded-full" style={{ width: `${Math.round(((step + 1) / steps.length) * 100)}%` }} />
               </div>
 
               {step === 0 && (
@@ -300,7 +369,8 @@ export default function ParcelsList() {
                   </div>
                   <div>
                     <label htmlFor="area" className="text-xs text-gray-600">Superficie (m²)</label>
-                    <input id="area" type="number" value={form.area ?? ''} onChange={e => setField('area', Number(e.target.value))} className="w-full h-10 px-3 border rounded-lg" />
+                    <input id="area" type="number" value={form.area ?? ''} onChange={e => setField('area', Number(e.target.value))} aria-invalid={Boolean(errors.area)} className={`w-full h-10 px-3 border rounded-lg ${errors.area ? 'border-red-500' : ''}`} />
+                    {errors.area && <div className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={12} /> {errors.area}</div>}
                   </div>
                   <div>
                     <label htmlFor="status" className="text-xs text-gray-600">Statut</label>
@@ -311,7 +381,7 @@ export default function ParcelsList() {
                     </select>
                   </div>
                   <div>
-                    <label htmlFor="land_use" className="text-xs text-gray-600">Affectation</label>
+                    <label htmlFor="land_use" className="text-xs text-gray-600 flex items-center gap-1">Affectation <span title="Destination de la parcelle"><Info size={14} className="text-gray-400" /></span></label>
                     <select id="land_use" value={form.land_use || ''} onChange={e => setField('land_use', e.target.value)} className="w-full h-10 px-3 border rounded-lg">
                       <option value="Résidentiel">Résidentiel</option>
                       <option value="Commercial">Commercial</option>
@@ -323,6 +393,7 @@ export default function ParcelsList() {
               )}
 
               {step === 1 && (
+                <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="province" className="text-xs text-gray-600">Province</label>
@@ -350,13 +421,28 @@ export default function ParcelsList() {
                   </div>
                   <div>
                     <label htmlFor="gps_lat" className="text-xs text-gray-600">GPS Lat</label>
-                    <input id="gps_lat" type="number" value={form.gps_lat ?? ''} onChange={e => setField('gps_lat', Number(e.target.value))} className="w-full h-10 px-3 border rounded-lg" />
+                    <input id="gps_lat" type="number" value={form.gps_lat ?? ''} onChange={e => setField('gps_lat', Number(e.target.value))} aria-invalid={Boolean(errors.gps_lat)} className={`w-full h-10 px-3 border rounded-lg ${errors.gps_lat ? 'border-red-500' : ''}`} />
+                    {errors.gps_lat && <div className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={12} /> {errors.gps_lat}</div>}
                   </div>
                   <div>
                     <label htmlFor="gps_long" className="text-xs text-gray-600">GPS Long</label>
-                    <input id="gps_long" type="number" value={form.gps_long ?? ''} onChange={e => setField('gps_long', Number(e.target.value))} className="w-full h-10 px-3 border rounded-lg" />
+                    <input id="gps_long" type="number" value={form.gps_long ?? ''} onChange={e => setField('gps_long', Number(e.target.value))} aria-invalid={Boolean(errors.gps_long)} className={`w-full h-10 px-3 border rounded-lg ${errors.gps_long ? 'border-red-500' : ''}`} />
+                    {errors.gps_long && <div className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={12} /> {errors.gps_long}</div>}
                   </div>
                 </div>
+                {typeof form.gps_lat === 'number' && typeof form.gps_long === 'number' ? (
+                  <div className="mt-4">
+                    <div className="text-xs text-gray-600 mb-2 flex items-center gap-1"><MapPin size={14} /> Mini-carte</div>
+                    <div className="w-full rounded-lg overflow-hidden border">
+                      <iframe
+                        title="Carte de la parcelle"
+                        className="w-full h-64"
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${form.gps_long - 0.01},${form.gps_lat - 0.01},${form.gps_long + 0.01},${form.gps_lat + 0.01}&layer=mapnik&marker=${form.gps_lat},${form.gps_long}`}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                </>
               )}
 
               {step === 2 && (
@@ -370,7 +456,7 @@ export default function ParcelsList() {
                     <input id="issuing_authority" value={form.issuing_authority || ''} onChange={e => setField('issuing_authority', e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
                   </div>
                   <div>
-                    <label htmlFor="acquisition_type" className="text-xs text-gray-600">Type d’acquisition</label>
+                    <label htmlFor="acquisition_type" className="text-xs text-gray-600 flex items-center gap-1">Type d’acquisition <span title="Concession, Achat ou Donation"><Info size={14} className="text-gray-400" /></span></label>
                     <select id="acquisition_type" value={form.acquisition_type || ''} onChange={e => setField('acquisition_type', e.target.value)} className="w-full h-10 px-3 border rounded-lg">
                       <option value="Concession">Concession</option>
                       <option value="Achat">Achat</option>
@@ -451,11 +537,67 @@ export default function ParcelsList() {
                 </div>
               )}
 
-              {error && <div className="mt-4 text-sm text-red-600">{error}</div>}
+              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-2"><Clock size={16} className="text-gray-500" /><span className="text-sm font-medium text-gray-700">Historique des modifications</span></div>
+                  <div className="space-y-2 max-h-48 overflow-auto">
+                    {history.length === 0 ? (
+                      <div className="text-xs text-gray-500">Aucun historique</div>
+                    ) : (
+                      history.map(h => {
+                        let items: string[] = []
+                        try {
+                          const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>
+                          items = Object.keys(obj).slice(0, 4).map(k => `${k}`)
+                        } catch { items = [] }
+                        return (
+                          <div key={h.id} className="text-xs text-gray-700">
+                            <span className="font-medium">{h.user}</span> — {new Date(h.changed_at).toLocaleString('fr-FR')}
+                            {items.length > 0 && <div className="text-gray-600">Champs modifiés: {items.join(', ')}</div>}
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-2"><MessageSquare size={16} className="text-gray-500" /><span className="text-sm font-medium text-gray-700">Notes</span></div>
+                  <div className="space-y-2 max-h-48 overflow-auto mb-2">
+                    {notes.length === 0 ? (
+                      <div className="text-xs text-gray-500">Aucune note</div>
+                    ) : (
+                      notes.map(n => (
+                        <div key={n.id} className="text-xs text-gray-700">
+                          <span className="font-medium">{n.author}</span>: {n.note}
+                          <span className="text-gray-500"> — {new Date(n.created_at).toLocaleString('fr-FR')}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ajouter une note" className="flex-1 h-10 px-3 border rounded-lg" />
+                    <button onClick={async () => { if (!selected || !noteText.trim()) return; const added = await api.addParcelNote(selected.id, noteText.trim(), 'Agent'); setNotes(prev => [added, ...prev]); setNoteText(''); }} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Ajouter</button>
+                  </div>
+                </div>
+              </div>
+              {reportOpen && (
+                <div className="mt-4 border rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-700 mb-2">Signaler un problème</div>
+                  <textarea value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Décrivez le problème rencontré" className="w-full h-24 px-3 py-2 border rounded-lg" />
+                  <div className="mt-2 flex gap-2">
+                    <button onClick={async () => { if (!selected || !reportText.trim()) return; const added = await api.addParcelNote(selected.id, `Signalement: ${reportText.trim()}`, 'Citoyen'); setNotes(prev => [added, ...prev]); setReportText(''); setReportOpen(false); }} className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Envoyer</button>
+                    <button onClick={() => setReportOpen(false)} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
+                  </div>
+                </div>
+              )}
+              {error && <div className="mt-4 text-sm text-red-600" aria-live="polite">{error}</div>}
             </div>
 
             <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-              <button onClick={closeModal} className="px-4 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => { if (!hasChanges() || window.confirm('Êtes-vous sûr de vouloir annuler ?')) closeModal(); }} className="px-4 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
+                <button onClick={() => setReportOpen(true)} className="text-emerald-700 underline">Signaler un problème</button>
+              </div>
               <button onClick={save} disabled={saving} className={`px-4 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 ${saving ? 'opacity-70 cursor-not-allowed' : ''}`}>
                 <Save size={16} /> Enregistrer
               </button>

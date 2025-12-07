@@ -197,6 +197,52 @@ export interface Database {
           updated_at?: string
         }
       }
+      parcel_history: {
+        Row: {
+          id: string
+          parcel_id: string
+          changes: string
+          changed_at: string
+          user: string
+        }
+        Insert: {
+          id?: string
+          parcel_id: string
+          changes: string
+          changed_at?: string
+          user: string
+        }
+        Update: {
+          id?: string
+          parcel_id?: string
+          changes?: string
+          changed_at?: string
+          user?: string
+        }
+      }
+      parcel_notes: {
+        Row: {
+          id: string
+          parcel_id: string
+          note: string
+          author: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          parcel_id: string
+          note: string
+          author: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          parcel_id?: string
+          note?: string
+          author?: string
+          created_at?: string
+        }
+      }
     }
   }
 }
@@ -209,3 +255,5 @@ export type Request = Database['public']['Tables']['requests']['Row']
 export type ParcelInsert = Database['public']['Tables']['parcels']['Insert']
 export type ParcelUpdate = Database['public']['Tables']['parcels']['Update']
 export type RequestInsert = Database['public']['Tables']['requests']['Insert']
+export type ParcelHistory = Database['public']['Tables']['parcel_history']['Row']
+export type ParcelNote = Database['public']['Tables']['parcel_notes']['Row']
