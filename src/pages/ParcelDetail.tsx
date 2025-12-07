@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
-import type { Parcel, ParcelUpdate } from '../types/database';
-import { MapPin, Maximize2, FileText, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers } from 'lucide-react';
+import type { Parcel, ParcelUpdate, Document } from '../types/database';
+import { MapPin, Maximize2, FileText, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download } from 'lucide-react';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -25,7 +25,8 @@ export default function ParcelDetail({ onNavigate }: Props) {
   const [historyDateTo, setHistoryDateTo] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
-  const [secondaryTab, setSecondaryTab] = useState<'history' | 'notes'>('notes');
+  const [secondaryTab, setSecondaryTab] = useState<'history' | 'notes' | 'documents'>('notes');
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [statusOpen, setStatusOpen] = useState(false);
   const [landUseOpen, setLandUseOpen] = useState(false);
 
@@ -93,7 +94,8 @@ export default function ParcelDetail({ onNavigate }: Props) {
       });
       const hid = api.getParcelHistory(p.id).then(setHistory).catch(() => setHistory([]));
       const nid = api.getParcelNotes(p.id).then(setNotes).catch(() => setNotes([]));
-      await Promise.allSettled([hid, nid]);
+      const did = api.getParcelDocuments(p.id).then(setDocuments).catch(() => setDocuments([]));
+      await Promise.allSettled([hid, nid, did]);
       setStep(0);
       setError(null);
     } catch (e) {
@@ -196,7 +198,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Edit size={20} className="text-emerald-600" />
@@ -206,9 +208,10 @@ export default function ParcelDetail({ onNavigate }: Props) {
           <X size={20} className="text-gray-600" />
         </button>
       </div>
-
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
               <Tag size={16} className="text-emerald-700" />
@@ -261,9 +264,9 @@ export default function ParcelDetail({ onNavigate }: Props) {
               </div>
             </div>
           </details>
-        </div>
+          </div>
 
-        <div className="px-6 py-4">
+          <div className="px-6 py-4">
           {(() => {
             const lat = (form.gps_lat ?? parcel.gps_lat) as number | undefined
             const lon = (form.gps_long ?? parcel.gps_long) as number | undefined
@@ -513,11 +516,11 @@ export default function ParcelDetail({ onNavigate }: Props) {
           <button onClick={save} disabled={saving} className={`px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 shadow-sm ${saving ? 'opacity-70 cursor-not-allowed' : ''}`} aria-label="Enregistrer les modifications">
             <Save size={16} /> Enregistrer
           </button>
+          </div>
         </div>
-      </div>
-
-      <div className="mt-6">
-        <div className="bg-white rounded-lg shadow-md border border-gray-200">
+        </div>
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow-md border border-gray-200">
           <div className="px-6 py-3 border-b border-gray-200 flex items-center gap-2">
             <button onClick={() => setSecondaryTab('history')} className={`px-3 py-2 rounded-lg text-sm font-medium border ${secondaryTab === 'history' ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}>
               <Clock size={14} className="inline-block mr-1" /> Historique
@@ -525,6 +528,10 @@ export default function ParcelDetail({ onNavigate }: Props) {
             <button onClick={() => setSecondaryTab('notes')} className={`px-3 py-2 rounded-lg text-sm font-medium border ${secondaryTab === 'notes' ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}>
               <MessageSquare size={14} className="inline-block mr-1" /> Notes
             </button>
+            <button onClick={() => setSecondaryTab('documents')} className={`px-3 py-2 rounded-lg text-sm font-medium border ${secondaryTab === 'documents' ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}>
+              <Paperclip size={14} className="inline-block mr-1" /> Documents
+            </button>
+          </div>
           </div>
           <div className="px-6 py-4">
             {secondaryTab === 'history' ? (
@@ -566,7 +573,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
                   )}
                 </div>
               </>
-            ) : (
+            ) : secondaryTab === 'notes' ? (
               <>
                 <div className="space-y-2 max-h-56 overflow-auto mb-2">
                   {notes.length === 0 ? (
@@ -604,6 +611,25 @@ export default function ParcelDetail({ onNavigate }: Props) {
                 <div className="flex items-center gap-2">
                   <input value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ajouter une note" className="flex-1 h-10 px-3 border rounded-lg" />
                   <button onClick={async () => { if (!parcel || !noteText.trim()) return; const added = await api.addParcelNote(parcel.id, noteText.trim(), 'Agent'); setNotes(prev => [added, ...prev]); setNoteText(''); }} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Ajouter</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 max-h-56 overflow-auto">
+                  {documents.length === 0 ? (
+                    <div className="text-xs text-gray-500">Aucun document</div>
+                  ) : (
+                    documents.map(d => (
+                      <div key={d.id} className="text-xs text-gray-700 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Paperclip size={14} className="text-gray-500" />
+                          <span className="font-medium">{d.type}</span>
+                          <span className="text-gray-500">{new Date(d.created_at).toLocaleString('fr-FR')}</span>
+                        </div>
+                        <a href={`/${d.file_path}`} target="_blank" rel="noreferrer" className="px-2 py-1 rounded border hover:bg-gray-50 flex items-center gap-1"><Download size={12} /> Télécharger</a>
+                      </div>
+                    ))
+                  )}
                 </div>
               </>
             )}

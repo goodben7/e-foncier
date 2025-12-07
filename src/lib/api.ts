@@ -76,6 +76,11 @@ export async function uploadParcelDocuments(parcelId: string, files: File[], typ
   return handleResponse(res)
 }
 
+export async function getParcelDocuments(parcelId: string): Promise<Document[]> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/documents`)
+  return handleResponse(res)
+}
+
 export async function updateParcel(id: string, payload: ParcelUpdate): Promise<Parcel> {
   const res = await fetch(`/api/parcels/${encodeURIComponent(id)}`, {
     method: 'PUT',

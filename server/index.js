@@ -393,6 +393,14 @@ app.post('/api/parcels/:id/documents', upload.array('files', 12), (req, res) => 
   res.status(201).json(inserted)
 })
 
+app.get('/api/parcels/:id/documents', (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const rows = db.prepare('SELECT * FROM documents WHERE parcel_id = ? ORDER BY datetime(created_at) DESC').all(parcelId)
+  res.json(rows)
+})
+
 app.get('/api/requests', (req, res) => {
   const rows = db.prepare('SELECT * FROM requests ORDER BY datetime(created_at) DESC').all()
   res.json(rows)
