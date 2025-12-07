@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as api from '../lib/api';
-import { FileText, MapPin, AlertTriangle, Clock } from 'lucide-react';
+import { FileText, MapPin, AlertTriangle, Clock, TrendingUp, CalendarDays, CheckCircle } from 'lucide-react';
 
 export default function Dashboard({ onNavigate }: { onNavigate?: (page: string) => void }) {
   const [stats, setStats] = useState({
@@ -12,6 +12,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (page: string) 
   });
   const [loading, setLoading] = useState(true);
   const [extended, setExtended] = useState<api.ExtendedStats | null>(null);
+  const [distMode, setDistMode] = useState<'province' | 'city'>('province');
 
   useEffect(() => {
     loadStats();
@@ -27,6 +28,14 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (page: string) 
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatMonth = (ym: string) => {
+    const parts = ym.split('-');
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleString('fr-FR', { month: 'short' });
   };
 
   const StatCard = ({
@@ -55,6 +64,42 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (page: string) 
         </div>
         <div className={`${iconColor} bg-opacity-20 p-3 rounded-full`}>
           <Icon size={32} className={iconColor.replace('bg-', 'text-')} />
+        </div>
+      </div>
+    </div>
+  );
+
+  const MetricTile = ({
+    title,
+    value,
+    icon: Icon,
+    tone,
+    footnote,
+    onClick,
+  }: {
+    title: string;
+    value: number;
+    icon: React.ElementType;
+    tone: 'blue' | 'orange' | 'emerald' | 'red';
+    footnote?: string;
+    onClick?: () => void;
+  }) => (
+    <div
+      className={`bg-white rounded-lg border p-4 shadow-sm transition-transform hover:scale-[1.02] ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-full ${
+          tone === 'blue' ? 'bg-blue-50' : tone === 'orange' ? 'bg-orange-50' : tone === 'emerald' ? 'bg-emerald-50' : 'bg-red-50'
+        }`}>
+          <Icon size={18} className={
+            tone === 'blue' ? 'text-blue-600' : tone === 'orange' ? 'text-orange-600' : tone === 'emerald' ? 'text-emerald-600' : 'text-red-600'
+          } />
+        </div>
+        <div className="flex-1">
+          <p className="text-xs text-gray-500">{title}</p>
+          <p className="text-xl font-bold text-gray-900">{value}</p>
+          {footnote && <p className="text-xs text-gray-500 mt-1">{footnote}</p>}
         </div>
       </div>
     </div>
@@ -128,66 +173,111 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (page: string) 
       {extended && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Indicateurs Additionnels</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Parcelles enregistrées ce mois</span>
-                <span className="text-lg font-semibold text-gray-900">{extended.parcelsThisMonth}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Docs manquants</span>
-                <span className="text-lg font-semibold text-orange-600">{extended.parcelsMissingDocs}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">En validation</span>
-                <span className="text-lg font-semibold text-blue-600">{extended.parcelsInValidation}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Conflits de limites</span>
-                <span className="text-lg font-semibold text-red-600">{extended.parcelsBoundaryConflicts}</span>
-              </div>
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => { sessionStorage.setItem('parcelFilter', 'En litige'); onNavigate?.('parcels-list') }}
-                  className="px-3 py-2 rounded-md text-sm bg-orange-600 text-white hover:bg-orange-700"
-                >Voir litiges</button>
-                <button
-                  onClick={() => { sessionStorage.setItem('parcelFilter', 'Libre'); onNavigate?.('parcels-list') }}
-                  className="px-3 py-2 rounded-md text-sm bg-green-600 text-white hover:bg-green-700"
-                >Voir libres</button>
-              </div>
+            <div className="flex items-center gap-3 mb-4">
+              <TrendingUp size={18} className="text-blue-600" />
+              <h3 className="text-lg font-bold text-gray-900">Indicateurs Additionnels</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {(() => {
+                const arr = extended.monthlyEvolution;
+                const last = arr[arr.length - 1]?.count || 0;
+                const prev = arr[arr.length - 2]?.count || 0;
+                const diff = last - prev;
+                const pct = prev > 0 ? Math.round((diff / prev) * 100) : (last > 0 ? 100 : 0);
+                const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+                return (
+                  <MetricTile
+                    title="Parcelles ce mois"
+                    value={extended.parcelsThisMonth}
+                    icon={CalendarDays}
+                    tone="blue"
+                    footnote={`${sign}${Math.abs(pct)}% vs mois préc.`}
+                    onClick={() => { sessionStorage.setItem('parcelFilter', 'all'); onNavigate?.('parcels-list'); }}
+                  />
+                );
+              })()}
+              <MetricTile
+                title="Docs manquants"
+                value={extended.parcelsMissingDocs}
+                icon={FileText}
+                tone="orange"
+              />
+              <MetricTile
+                title="En validation"
+                value={extended.parcelsInValidation}
+                icon={CheckCircle}
+                tone="emerald"
+              />
+              <MetricTile
+                title="Conflits de limites"
+                value={extended.parcelsBoundaryConflicts}
+                icon={AlertTriangle}
+                tone="red"
+                onClick={() => { sessionStorage.setItem('parcelFilter', 'En litige'); onNavigate?.('parcels-list'); }}
+              />
             </div>
           </div>
           <div className="bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Répartition par Province</h3>
-            <div className="space-y-3">
-              {extended.parcelsByProvince.slice(0,6).map((p) => (
-                <div key={p.province}>
-                  <div className="flex justify-between text-sm text-gray-700">
-                    <span>{p.province || 'Non spécifiée'}</span>
-                    <span>{p.c}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full">
-                    <div className="h-2 bg-emerald-600 rounded-full" style={{ width: `${Math.min(100, (p.c / Math.max(1, extended.parcelsByProvince[0]?.c)) * 100)}%` }}></div>
-                  </div>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Répartition</h3>
+              <div className="bg-gray-100 rounded-md p-1 flex">
+                <button
+                  onClick={() => setDistMode('province')}
+                  className={`px-3 py-1 rounded-md text-sm ${distMode === 'province' ? 'bg-white shadow' : 'text-gray-600'}`}
+                >Province</button>
+                <button
+                  onClick={() => setDistMode('city')}
+                  className={`px-3 py-1 rounded-md text-sm ${distMode === 'city' ? 'bg-white shadow' : 'text-gray-600'}`}
+                >Ville</button>
+              </div>
             </div>
+            {(() => {
+              const data = distMode === 'province'
+                ? extended.parcelsByProvince.map(({ province, c }) => ({ name: province || 'Non spécifiée', c }))
+                : extended.parcelsByCity.map(({ city, c }) => ({ name: city || 'Non spécifiée', c }));
+              const top = data.slice(0, 8);
+              const max = Math.max(...top.map(x => x.c)) || 1;
+              const total = top.reduce((a, b) => a + b.c, 0) || 1;
+              return (
+                <div className="space-y-3">
+                  {top.map((p) => (
+                    <div key={`${distMode}-${p.name}`} className="flex items-center gap-3">
+                      <div className="w-36 text-sm text-gray-700 truncate">{p.name}</div>
+                      <div className="flex-1 h-3 bg-gray-100 rounded">
+                        <div className="h-3 bg-emerald-600 rounded" style={{ width: `${Math.round((p.c / max) * 100)}%` }}></div>
+                      </div>
+                      <div className="w-20 text-right text-sm text-gray-700">{p.c} ({Math.round((p.c / total) * 100)}%)</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
           <div className="bg-white rounded-lg shadow-md p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Évolution sur 12 mois</h3>
-            <div className="flex items-end gap-2 h-32">
-              {extended.monthlyEvolution.map((m) => {
-                const max = Math.max(...extended.monthlyEvolution.map(x => x.count)) || 1
-                const h = Math.max(4, Math.round((m.count / max) * 100))
-                return (
-                  <div key={m.month} className="flex flex-col items-center">
-                    <div className="w-4 bg-emerald-600 rounded-t" style={{ height: `${h}%` }}></div>
-                    <div className="text-[10px] text-gray-500 mt-1">{m.month.slice(5)}</div>
+            {(() => {
+              const max = Math.max(...extended.monthlyEvolution.map(x => x.count)) || 1;
+              const avg = Math.round(extended.monthlyEvolution.reduce((a, b) => a + b.count, 0) / extended.monthlyEvolution.length) || 0;
+              const hpx = 160;
+              const avgPx = Math.max(8, Math.round((avg / max) * (hpx - 20)));
+              return (
+                <div className="relative">
+                  <div className="absolute left-0 right-0 border-t border-dashed border-gray-300" style={{ bottom: `${avgPx}px` }}></div>
+                  <div className="flex items-end gap-2 h-40">
+                    {extended.monthlyEvolution.map((m) => {
+                      const h = Math.max(8, Math.round((m.count / max) * (hpx - 20)));
+                      return (
+                        <div key={m.month} className="flex flex-col items-center">
+                          <div className="w-5 bg-emerald-600 rounded" style={{ height: `${h}px` }} title={`${m.count} parcelles`}></div>
+                          <div className="text-[10px] text-gray-500 mt-1">{formatMonth(m.month)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                  <p className="text-xs text-gray-500 mt-2">Moyenne: {avg} parcelles/mois</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
