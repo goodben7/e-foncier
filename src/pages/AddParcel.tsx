@@ -32,7 +32,27 @@ export default function AddParcel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [step, setStep] = useState(1);
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachments, setAttachments] = useState<{ file: File; docType: string }[]>([]);
+  const [currentDocType, setCurrentDocType] = useState('');
+  const docTypes = [
+    'Carte d’identité nationale',
+    'Passeport',
+    'Attestation de résidence',
+    'Titre de propriété provisoire',
+    'Certificat d’enregistrement',
+    'Acte de cession / vente',
+    'Acte de donation',
+    'Acte de succession / héritage',
+    'Plan cadastral',
+    'Plan de bornage',
+    'Procès-verbal de bornage',
+    'Attestation de non-litige',
+    'Autorisation de lotissement',
+    'Certificat d’urbanisme',
+    'Quitus fiscal foncier',
+    'Image de la parcelle',
+    'Autres',
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +62,11 @@ export default function AddParcel() {
     try {
       const created = await api.createParcel(formData);
       if (attachments.length) {
-        await api.uploadParcelDocuments(created.id, attachments);
+        await api.uploadParcelDocuments(
+          created.id,
+          attachments.map(a => a.file),
+          attachments.map(a => a.docType)
+        );
       }
 
       setMessage({ type: 'success', text: 'Parcelle enregistrée avec succès!' });
@@ -72,6 +96,7 @@ export default function AddParcel() {
         cadastral_plan_ref: '',
       });
       setAttachments([]);
+      setCurrentDocType('');
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue';
       setMessage({ type: 'error', text: errorMessage });
@@ -126,7 +151,16 @@ export default function AddParcel() {
   const handleFilesAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     const filtered = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-    setAttachments(prev => [...prev, ...filtered]);
+    if (!currentDocType) {
+      setMessage({ type: 'error', text: 'Veuillez choisir le type de document avant d’ajouter des fichiers.' });
+      return;
+    }
+    const available = Math.max(0, 12 - attachments.length);
+    const selected = filtered.slice(0, available);
+    if (selected.length < filtered.length) {
+      setMessage({ type: 'error', text: 'Vous ne pouvez pas joindre plus de 12 fichiers par parcelle.' });
+    }
+    setAttachments(prev => [...prev, ...selected.map(f => ({ file: f, docType: currentDocType }))]);
     e.target.value = '';
   };
 
@@ -434,6 +468,25 @@ export default function AddParcel() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Pièces jointes (images/PDF)</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label htmlFor="doc_type" className="block text-sm font-semibold text-gray-700 mb-2">Type de document joint</label>
+                    <div className="relative">
+                      <select
+                        id="doc_type"
+                        value={currentDocType}
+                        onChange={(e) => setCurrentDocType(e.target.value)}
+                        className="w-full h-11 pl-4 pr-10 bg-white border border-gray-300 rounded-lg text-gray-900 shadow-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400 transition-colors appearance-none"
+                      >
+                        <option value="">Sélectionnez le type</option>
+                        {docTypes.map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    </div>
+                  </div>
+                </div>
                 <div className="flex items-center gap-3">
                   <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 cursor-pointer">
                     <Upload size={18} />
@@ -444,12 +497,13 @@ export default function AddParcel() {
                 </div>
                 {attachments.length > 0 && (
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {attachments.map((file, i) => (
+                    {attachments.map((att, i) => (
                       <div key={i} className="border border-gray-200 rounded-lg p-3 flex items-center gap-3">
-                        {file.type === 'application/pdf' ? <FileText size={18} className="text-red-600" /> : <Image size={18} className="text-emerald-600" />}
+                        {att.file.type === 'application/pdf' ? <FileText size={18} className="text-red-600" /> : <Image size={18} className="text-emerald-600" />}
                         <div className="flex-1">
-                          <div className="text-sm text-gray-900 truncate">{file.name}</div>
-                          <div className="text-xs text-gray-500">{(file.size / (1024 * 1024)).toFixed(2)} Mo</div>
+                          <div className="text-sm text-gray-900 truncate">{att.file.name}</div>
+                          <div className="text-xs text-gray-500">{(att.file.size / (1024 * 1024)).toFixed(2)} Mo</div>
+                          <div className="text-xs text-gray-600">{att.docType}</div>
                         </div>
                         <button type="button" onClick={() => removeAttachment(i)} className="text-gray-500 hover:text-red-600">
                           <Trash2 size={16} />

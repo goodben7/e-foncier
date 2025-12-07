@@ -121,6 +121,7 @@ export interface Database {
           id: string
           parcel_id: string | null
           type: string
+          mime: string
           file_path: string
           created_at: string
         }
@@ -128,6 +129,7 @@ export interface Database {
           id?: string
           parcel_id?: string | null
           type: string
+          mime: string
           file_path: string
           created_at?: string
         }
@@ -135,6 +137,7 @@ export interface Database {
           id?: string
           parcel_id?: string | null
           type?: string
+          mime?: string
           file_path?: string
           created_at?: string
         }

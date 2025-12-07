@@ -65,9 +65,10 @@ export async function getExtendedStats(): Promise<ExtendedStats> {
   return handleResponse(res)
 }
 
-export async function uploadParcelDocuments(parcelId: string, files: File[]): Promise<Document[]> {
+export async function uploadParcelDocuments(parcelId: string, files: File[], types: string[]): Promise<Document[]> {
   const fd = new FormData()
   for (const f of files) fd.append('files', f)
+  for (const t of types) fd.append('types', t)
   const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/documents`, {
     method: 'POST',
     body: fd,

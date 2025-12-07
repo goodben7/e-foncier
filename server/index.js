@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS documents (
   id TEXT PRIMARY KEY,
   parcel_id TEXT,
   type TEXT NOT NULL,
+  mime TEXT NOT NULL,
   file_path TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
@@ -116,6 +117,14 @@ ensureColumn('cadastral_plan_ref', 'TEXT NOT NULL DEFAULT ""')
 ensureColumn('servitudes', 'TEXT')
 ensureColumn('charges', 'TEXT')
 ensureColumn('litigation', 'TEXT')
+
+const docColumns = db.prepare("PRAGMA table_info(documents)").all().map(r => r.name)
+function ensureDocColumn(name, ddl) {
+  if (!docColumns.includes(name)) {
+    db.exec(`ALTER TABLE documents ADD COLUMN ${ddl}`)
+  }
+}
+ensureDocColumn('mime', 'TEXT NOT NULL DEFAULT ""')
 
 const app = express()
 app.use(cors())
@@ -213,14 +222,18 @@ app.post('/api/parcels/:id/documents', upload.array('files', 12), (req, res) => 
   if (!parcel) return res.status(404).json({ error: 'Not found' })
   const now = new Date().toISOString()
   const files = Array.isArray(req.files) ? req.files : []
+  const rawTypes = req.body?.types
+  const typesArr = Array.isArray(rawTypes) ? rawTypes : (typeof rawTypes === 'string' ? [rawTypes] : [])
   const inserted = []
-  for (const f of files) {
-    const type = f.mimetype === 'application/pdf' ? 'pdf' : 'image'
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i]
     const id = randomUUID()
     const relPath = path.join('uploads', path.basename(f.path))
-    db.prepare('INSERT INTO documents (id, parcel_id, type, file_path, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(id, parcelId, type, relPath, now)
-    inserted.push({ id, parcel_id: parcelId, type, file_path: relPath, created_at: now })
+    const mime = f.mimetype
+    const type = typeof typesArr[i] === 'string' && typesArr[i].trim() ? String(typesArr[i]).trim() : 'Autres'
+    db.prepare('INSERT INTO documents (id, parcel_id, type, mime, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, parcelId, type, mime, relPath, now)
+    inserted.push({ id, parcel_id: parcelId, type, mime, file_path: relPath, created_at: now })
   }
   res.status(201).json(inserted)
 })
