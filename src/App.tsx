@@ -29,7 +29,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation currentPage={currentPage} onNavigate={setCurrentPage} />
-      <main>{renderPage()}</main>
+      <main className="pt-28">{renderPage()}</main>
     </div>
   );
 }
