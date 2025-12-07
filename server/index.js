@@ -340,6 +340,37 @@ app.post('/api/parcels/:id/notes', (req, res) => {
   }
 })
 
+app.put('/api/parcels/:id/notes/:noteId', (req, res) => {
+  const parcelId = req.params.id
+  const noteId = req.params.noteId
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const b = req.body || {}
+  const note = typeof b.note === 'string' && b.note.trim() ? b.note.trim() : ''
+  if (!note) return res.status(400).json({ error: 'Note required' })
+  try {
+    db.prepare('UPDATE parcel_notes SET note = ? WHERE id = ? AND parcel_id = ?').run(note, noteId, parcelId)
+    const row = db.prepare('SELECT * FROM parcel_notes WHERE id = ?').get(noteId)
+    if (!row) return res.status(404).json({ error: 'Not found' })
+    res.json(row)
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+app.delete('/api/parcels/:id/notes/:noteId', (req, res) => {
+  const parcelId = req.params.id
+  const noteId = req.params.noteId
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  try {
+    db.prepare('DELETE FROM parcel_notes WHERE id = ? AND parcel_id = ?').run(noteId, parcelId)
+    res.status(204).end()
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 app.post('/api/parcels/:id/documents', upload.array('files', 12), (req, res) => {
   const parcelId = req.params.id
   const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)

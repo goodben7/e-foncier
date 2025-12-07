@@ -112,3 +112,23 @@ export async function addParcelNote(parcelId: string, note: string, author: stri
   })
   return handleResponse(res)
 }
+
+export async function updateParcelNote(parcelId: string, noteId: string, note: string): Promise<{ id: string; parcel_id: string; note: string; author: string; created_at: string }> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/notes/${encodeURIComponent(noteId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note }),
+  })
+  return handleResponse(res)
+}
+
+export async function deleteParcelNote(parcelId: string, noteId: string): Promise<void> {
+  const res = await fetch(`/api/parcels/${encodeURIComponent(parcelId)}/notes/${encodeURIComponent(noteId)}`, {
+    method: 'DELETE',
+  })
+  if (!res.ok && res.status !== 204) {
+    const data: { error?: string } = await res.json().catch(() => ({} as { error?: string }))
+    const msg = typeof data.error === 'string' ? data.error : 'Erreur serveur'
+    throw new Error(msg)
+  }
+}

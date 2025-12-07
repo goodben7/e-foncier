@@ -3,6 +3,7 @@ import Navigation from './components/Navigation';
 import Dashboard from './pages/Dashboard';
 import AddParcel from './pages/AddParcel';
 import ParcelsList from './pages/ParcelsList';
+import ParcelDetail from './pages/ParcelDetail';
 import SearchParcel from './pages/SearchParcel';
 import DocumentRequest from './pages/DocumentRequest';
 
@@ -16,7 +17,9 @@ function App() {
       case 'add-parcel':
         return <AddParcel />;
       case 'parcels-list':
-        return <ParcelsList />;
+        return <ParcelsList onNavigate={setCurrentPage} />;
+      case 'parcel-detail':
+        return <ParcelDetail onNavigate={setCurrentPage} />;
       case 'search':
         return <SearchParcel />;
       case 'request':
