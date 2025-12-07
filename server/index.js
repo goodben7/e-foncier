@@ -330,6 +330,122 @@ app.get('/api/stats/extended', (req, res) => {
   }
 })
 
+function randOf(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+function dateOnlyISO(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+}
+
+app.post('/api/seed', (req, res) => {
+  try {
+    const provinces = ['Kinshasa','Kongo Central','Kwango','Kwilu','Mai-Ndombe','Kasaï','Kasaï Central','Kasaï Oriental','Lomami','Sankuru','Maniema','Sud-Kivu','Nord-Kivu','Tanganyika','Haut-Lomami','Lualaba','Haut-Katanga','Ituri','Tshopo','Bas-Uele','Haut-Uele','Mongala','Nord-Ubangi','Sud-Ubangi','Équateur','Tshuapa']
+    const statuses = ['Libre','En litige','Hypothéqué']
+    const landUses = ['Résidentiel','Commercial','Agricole','Mixte']
+    const authorities = ['Direction des Titres Immobiliers','Direction du Cadastre Foncier','Direction du Contentieux Foncier et Immobilier']
+    const acquisitions = ['Concession','Achat','Donation']
+    const docTypesSeed = ['Copie du titre foncier','Certificat d’enregistrement','Attestation de propriété','Extrait du registre foncier','Copie du plan cadastral','Certificat de situation juridique','Attestation de non-litige','Historique des litiges sur une parcelle','Copie de décision administrative foncière','Certificat de mutation','Attestation de bornage','PV de bornage','Autre']
+
+    const reset = Boolean(req.body && req.body.reset)
+    const nParcels = Number(req.body && req.body.parcels) || 30
+    const nRequests = Number(req.body && req.body.requests) || 20
+    const nDocuments = Number(req.body && req.body.documents) || 24
+
+    if (reset) {
+      db.exec('DELETE FROM documents; DELETE FROM disputes; DELETE FROM requests; DELETE FROM parcels;')
+    }
+
+    const now = new Date().toISOString()
+    const parcelIds = []
+    const parcelRefs = []
+
+    for (let i = 0; i < nParcels; i++) {
+      const id = randomUUID()
+      const year = new Date().getFullYear()
+      const ref = `SEED-${year}-${randomUUID().slice(0, 6)}`
+      const prov = randOf(provinces)
+      const city = `Ville ${randInt(1, 20)}`
+      const commune = `Commune ${randInt(1, 10)}`
+      const quartier = `Quartier ${randInt(1, 30)}`
+      const avenue = `Avenue ${randInt(1, 200)}`
+      const gpsLat = Math.round((Math.random() * (5 - -13) + -13) * 100000) / 100000
+      const gpsLong = Math.round((Math.random() * (31 - 12) + 12) * 100000) / 100000
+      const area = randInt(200, 5000)
+      const status = randOf(statuses)
+      const land = randOf(landUses)
+      const certNum = `CERT-${randInt(10000, 99999)}`
+      const issuingAuth = randOf(authorities)
+      const acquisitionType = randOf(acquisitions)
+      const acquisitionActRef = `ACT-${randInt(1000, 9999)}`
+      const d = new Date()
+      d.setMonth(d.getMonth() - randInt(0, 24))
+      const titleDate = dateOnlyISO(d)
+      const ownerName = `Propriétaire ${randInt(1, 500)}`
+      const ownerIdNumber = `ID-${randInt(100000, 999999)}`
+      const pvRef = `PV-${randInt(1000, 9999)}`
+      const surveyorName = `Géomètre ${randInt(1, 200)}`
+      const surveyorLicense = `AGR-${randInt(10000, 99999)}`
+      const planRef = `Feuille ${randInt(1, 50)} / Section ${randInt(1, 20)}`
+
+      db.prepare(
+        `INSERT INTO parcels (
+          id, reference, parcel_number, province, territory_or_city, commune_or_sector, quartier_or_cheflieu, avenue,
+          gps_lat, gps_long, area, location, status, land_use, certificate_number, issuing_authority, acquisition_type,
+          acquisition_act_ref, title_date, owner_name, owner_id_number, company_name, rccm, nif, surveying_pv_ref,
+          surveyor_name, surveyor_license, cadastral_plan_ref, servitudes, charges, litigation, created_at, updated_at
+        ) VALUES (
+          ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+        )`
+      ).run(
+        id, ref, `F-${randInt(1, 999)}/SEC-${randInt(1, 99)}/P-${randInt(1, 9999)}`, prov, city, commune, quartier, avenue,
+        gpsLat, gpsLong, area, null, status, land, certNum, issuingAuth, acquisitionType,
+        acquisitionActRef, titleDate, ownerName, ownerIdNumber, null, null, null, pvRef,
+        surveyorName, surveyorLicense, planRef, null, null, status === 'En litige' ? 'Litige signalé' : null, now, now
+      )
+
+      parcelIds.push(id)
+      parcelRefs.push(ref)
+    }
+
+    for (let i = 0; i < nRequests; i++) {
+      const id = randomUUID()
+      const citizen = `Citoyen ${randInt(1, 1000)}`
+      const pref = randOf(parcelRefs)
+      const dtype = randOf(docTypesSeed)
+      const status = randOf(['En attente','Approuvé','Rejeté'])
+      const d = new Date()
+      d.setDate(d.getDate() - randInt(0, 60))
+      const created = d.toISOString()
+      db.prepare(
+        'INSERT INTO requests (id, citizen_name, parcel_reference, document_type, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, citizen, pref, dtype, status, created, created)
+    }
+
+    for (let i = 0; i < nDocuments; i++) {
+      const id = randomUUID()
+      const pid = randOf(parcelIds)
+      const dtype = randOf(docTypesSeed)
+      const isPdf = Math.random() < 0.6
+      const mime = isPdf ? 'application/pdf' : 'image/jpeg'
+      const fname = isPdf ? `seed-${id.slice(0,8)}.pdf` : `seed-${id.slice(0,8)}.jpg`
+      const pathRel = path.join('uploads', fname)
+      db.prepare(
+        'INSERT INTO documents (id, parcel_id, type, mime, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(id, pid, dtype, mime, pathRel, now)
+    }
+
+    res.json({ parcels: nParcels, requests: nRequests, documents: nDocuments })
+  } catch (e) {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
 const port = process.env.PORT || 3000
 app.listen(port, () => {
   console.log(`API running on http://localhost:${port}`)
