@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, ParcelUpdate } from '../types/database';
-import { MapPin, Maximize2, FileText, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2 } from 'lucide-react';
+import { MapPin, Maximize2, FileText, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers } from 'lucide-react';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -25,6 +25,9 @@ export default function ParcelDetail({ onNavigate }: Props) {
   const [historyDateTo, setHistoryDateTo] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editingNoteText, setEditingNoteText] = useState('');
+  const [secondaryTab, setSecondaryTab] = useState<'history' | 'notes'>('notes');
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [landUseOpen, setLandUseOpen] = useState(false);
 
   const steps = [
     'Informations générales',
@@ -296,22 +299,66 @@ export default function ParcelDetail({ onNavigate }: Props) {
                 <input id="area" type="number" value={form.area ?? ''} onChange={e => setField('area', Number(e.target.value))} aria-invalid={Boolean(errors.area)} className={`w-full h-10 px-3 border rounded-lg ${errors.area ? 'border-red-500' : ''}`} />
                 {errors.area && <div className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle size={12} /> {errors.area}</div>}
               </div>
-              <div>
-                <label htmlFor="status" className="text-xs text-gray-600">Statut</label>
-                <select id="status" value={form.status || ''} onChange={e => setField('status', e.target.value)} className="w-full h-10 px-3 border rounded-lg">
-                  <option value="Libre">Libre</option>
-                  <option value="En litige">En litige</option>
-                  <option value="Hypothéqué">Hypothéqué</option>
-                </select>
+              <div className="relative">
+                <span className="text-xs text-gray-600">Statut</span>
+                <button type="button" onClick={() => setStatusOpen(s => !s)} aria-haspopup="listbox" aria-expanded={statusOpen} className="w-full h-10 px-3 border rounded-lg flex items-center justify-between">
+                  <span className={`inline-flex items-center gap-2 px-2 py-1 rounded-full border ${getStatusColor(form.status || parcel.status)}`}>
+                    {(() => {
+                      const v = form.status || parcel.status
+                      if (v === 'Libre') return <CheckCircle size={14} />
+                      if (v === 'En litige') return <AlertTriangle size={14} />
+                      if (v === 'Hypothéqué') return <Lock size={14} />
+                      return <AlertCircle size={14} />
+                    })()}
+                    <span className="text-xs">{form.status || parcel.status}</span>
+                  </span>
+                  <ChevronDown size={16} className="text-gray-500" />
+                </button>
+                {statusOpen && (
+                  <div role="listbox" className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
+                    {['Libre','En litige','Hypothéqué'].map(v => (
+                      <div key={v} role="option" aria-selected={(form.status || parcel.status) === v} onClick={() => { setField('status', v); setStatusOpen(false); }} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2">
+                        {v === 'Libre' && <CheckCircle size={14} className="text-emerald-600" />}
+                        {v === 'En litige' && <AlertTriangle size={14} className="text-orange-600" />}
+                        {v === 'Hypothéqué' && <Lock size={14} className="text-red-600" />}
+                        <span className="text-sm">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div>
-                <label htmlFor="land_use" className="text-xs text-gray-600 flex items-center gap-1">Affectation <span title="Destination de la parcelle"><Info size={14} className="text-gray-400" /></span></label>
-                <select id="land_use" value={form.land_use || ''} onChange={e => setField('land_use', e.target.value)} className="w-full h-10 px-3 border rounded-lg">
-                  <option value="Résidentiel">Résidentiel</option>
-                  <option value="Commercial">Commercial</option>
-                  <option value="Agricole">Agricole</option>
-                  <option value="Mixte">Mixte</option>
-                </select>
+                <span className="text-xs text-gray-600 flex items-center gap-1">Affectation <span title="Destination de la parcelle"><Info size={14} className="text-gray-400" /></span></span>
+                <div className="relative">
+                  <button type="button" onClick={() => setLandUseOpen(s => !s)} aria-haspopup="listbox" aria-expanded={landUseOpen} className="w-full h-10 px-3 border rounded-lg flex items-center justify-between">
+                    <span className="inline-flex items-center gap-2">
+                      {(() => {
+                        const v = form.land_use || parcel.land_use
+                        if (v === 'Résidentiel') return <Home size={14} className="text-gray-600" />
+                        if (v === 'Commercial') return <Building2 size={14} className="text-gray-600" />
+                        if (v === 'Agricole') return <Leaf size={14} className="text-gray-600" />
+                        return <Layers size={14} className="text-gray-600" />
+                      })()}
+                      <span className="text-sm">{form.land_use || parcel.land_use}</span>
+                    </span>
+                    <ChevronDown size={16} className="text-gray-500" />
+                  </button>
+                  {landUseOpen && (
+                    <div role="listbox" className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
+                      {[
+                        { v: 'Résidentiel', I: <Home size={14} className="text-gray-600" /> },
+                        { v: 'Commercial', I: <Building2 size={14} className="text-gray-600" /> },
+                        { v: 'Agricole', I: <Leaf size={14} className="text-gray-600" /> },
+                        { v: 'Mixte', I: <Layers size={14} className="text-gray-600" /> },
+                      ].map(({ v, I }) => (
+                        <div key={v} role="option" aria-selected={(form.land_use || parcel.land_use) === v} onClick={() => { setField('land_use', v); setLandUseOpen(false); }} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2">
+                          {I}
+                          <span className="text-sm">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -443,87 +490,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2"><Clock size={16} className="text-gray-500" /><span className="text-sm font-medium text-gray-700">Historique des modifications</span></div>
-              <div className="mb-2 flex items-center gap-2">
-                <input type="date" value={historyDateFrom} onChange={e => setHistoryDateFrom(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer depuis la date" />
-                <input type="date" value={historyDateTo} onChange={e => setHistoryDateTo(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer jusqu’à la date" />
-                <input type="text" value={historyFilterText} onChange={e => setHistoryFilterText(e.target.value)} placeholder="Filtrer par champ" className="flex-1 h-9 px-3 border rounded-lg text-xs" />
-              </div>
-              <div className="space-y-2 max-h-48 overflow-auto">
-                {history.length === 0 ? (
-                  <div className="text-xs text-gray-500">Aucun historique</div>
-                ) : (
-                  history.filter(h => {
-                    const d = new Date(h.changed_at)
-                    const okFrom = historyDateFrom ? d >= new Date(historyDateFrom) : true
-                    const okTo = historyDateTo ? d <= new Date(historyDateTo) : true
-                    let matchText = true
-                    if (historyFilterText.trim()) {
-                      try {
-                        const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>
-                        matchText = Object.keys(obj).some(k => k.toLowerCase().includes(historyFilterText.trim().toLowerCase()))
-                      } catch { matchText = false }
-                    }
-                    return okFrom && okTo && matchText
-                  }).map(h => {
-                    let items: string[] = [];
-                    try {
-                      const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>;
-                      items = Object.keys(obj).slice(0, 4).map(k => `${k}`);
-                    } catch { items = []; }
-                    return (
-                      <div key={h.id} className="text-xs text-gray-700">
-                        <span className="font-medium">{h.user}</span> — {new Date(h.changed_at).toLocaleString('fr-FR')}
-                        {items.length > 0 && <div className="text-gray-600">Champs modifiés: {items.join(', ')}</div>}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-2"><MessageSquare size={16} className="text-gray-500" /><span className="text-sm font-medium text-gray-700">Notes</span></div>
-              <div className="space-y-2 max-h-48 overflow-auto mb-2">
-                {notes.length === 0 ? (
-                  <div className="text-xs text-gray-500">Aucune note</div>
-                ) : (
-                  notes.map(n => (
-                    <div key={n.id} className="text-xs text-gray-700">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <span className="font-medium">{n.author}</span>: {editingNoteId === n.id ? (
-                            <textarea value={editingNoteText} onChange={e => setEditingNoteText(e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" />
-                          ) : (
-                            n.note
-                          )}
-                          <div className="text-gray-500">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {editingNoteId === n.id ? (
-                            <>
-                              <button onClick={async () => { if (!parcel) return; if (!editingNoteText.trim()) return; const updated = await api.updateParcelNote(parcel.id, n.id, editingNoteText.trim()); setNotes(prev => prev.map(x => x.id === n.id ? updated : x)); setEditingNoteId(null); setEditingNoteText(''); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Enregistrer la note"><Save size={14} /></button>
-                              <button onClick={() => { setEditingNoteId(null); setEditingNoteText(''); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Annuler la modification"><X size={14} /></button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.note); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Modifier"><Pencil size={14} /></button>
-                              <button onClick={async () => { if (!parcel) return; if (!window.confirm('Supprimer cette note ?')) return; await api.deleteParcelNote(parcel.id, n.id); setNotes(prev => prev.filter(x => x.id !== n.id)); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Supprimer"><Trash2 size={14} /></button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <input value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ajouter une note" className="flex-1 h-10 px-3 border rounded-lg" />
-                <button onClick={async () => { if (!parcel || !noteText.trim()) return; const added = await api.addParcelNote(parcel.id, noteText.trim(), 'Agent'); setNotes(prev => [added, ...prev]); setNoteText(''); }} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Ajouter</button>
-              </div>
-            </div>
-          </div>
+          
 
           {reportOpen && (
             <div className="mt-4 border rounded-lg p-3">
@@ -549,7 +516,100 @@ export default function ParcelDetail({ onNavigate }: Props) {
         </div>
       </div>
 
-      
+      <div className="mt-6">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200">
+          <div className="px-6 py-3 border-b border-gray-200 flex items-center gap-2">
+            <button onClick={() => setSecondaryTab('history')} className={`px-3 py-2 rounded-lg text-sm font-medium border ${secondaryTab === 'history' ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}>
+              <Clock size={14} className="inline-block mr-1" /> Historique
+            </button>
+            <button onClick={() => setSecondaryTab('notes')} className={`px-3 py-2 rounded-lg text-sm font-medium border ${secondaryTab === 'notes' ? 'bg-gray-100 text-gray-900' : 'hover:bg-gray-50 text-gray-700'}`}>
+              <MessageSquare size={14} className="inline-block mr-1" /> Notes
+            </button>
+          </div>
+          <div className="px-6 py-4">
+            {secondaryTab === 'history' ? (
+              <>
+                <div className="mb-2 flex items-center gap-2">
+                  <input type="date" value={historyDateFrom} onChange={e => setHistoryDateFrom(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer depuis la date" />
+                  <input type="date" value={historyDateTo} onChange={e => setHistoryDateTo(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer jusqu’à la date" />
+                  <input type="text" value={historyFilterText} onChange={e => setHistoryFilterText(e.target.value)} placeholder="Filtrer par champ" className="flex-1 h-9 px-3 border rounded-lg text-xs" />
+                </div>
+                <div className="space-y-2 max-h-56 overflow-auto">
+                  {history.length === 0 ? (
+                    <div className="text-xs text-gray-500">Aucun historique</div>
+                  ) : (
+                    history.filter(h => {
+                      const d = new Date(h.changed_at)
+                      const okFrom = historyDateFrom ? d >= new Date(historyDateFrom) : true
+                      const okTo = historyDateTo ? d <= new Date(historyDateTo) : true
+                      let matchText = true
+                      if (historyFilterText.trim()) {
+                        try {
+                          const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>
+                          matchText = Object.keys(obj).some(k => k.toLowerCase().includes(historyFilterText.trim().toLowerCase()))
+                        } catch { matchText = false }
+                      }
+                      return okFrom && okTo && matchText
+                    }).map(h => {
+                      let items: string[] = [];
+                      try {
+                        const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>;
+                        items = Object.keys(obj).slice(0, 4).map(k => `${k}`);
+                      } catch { items = []; }
+                      return (
+                        <div key={h.id} className="text-xs text-gray-700">
+                          <span className="font-medium">{h.user}</span> — {new Date(h.changed_at).toLocaleString('fr-FR')}
+                          {items.length > 0 && <div className="text-gray-600">Champs modifiés: {items.join(', ')}</div>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2 max-h-56 overflow-auto mb-2">
+                  {notes.length === 0 ? (
+                    <div className="text-xs text-gray-500">Aucune note</div>
+                  ) : (
+                    notes.map(n => (
+                      <div key={n.id} className="text-xs text-gray-700">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <span className="font-medium">{n.author}</span>: {editingNoteId === n.id ? (
+                              <textarea value={editingNoteText} onChange={e => setEditingNoteText(e.target.value)} className="mt-1 w-full px-2 py-1 border rounded" />
+                            ) : (
+                              n.note
+                            )}
+                            <div className="text-gray-500">{new Date(n.created_at).toLocaleString('fr-FR')}</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {editingNoteId === n.id ? (
+                              <>
+                                <button onClick={async () => { if (!parcel) return; if (!editingNoteText.trim()) return; const updated = await api.updateParcelNote(parcel.id, n.id, editingNoteText.trim()); setNotes(prev => prev.map(x => x.id === n.id ? updated : x)); setEditingNoteId(null); setEditingNoteText(''); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Enregistrer la note"><Save size={14} /></button>
+                                <button onClick={() => { setEditingNoteId(null); setEditingNoteText(''); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Annuler la modification"><X size={14} /></button>
+                              </>
+                            ) : (
+                              <>
+                                <button onClick={() => { setEditingNoteId(n.id); setEditingNoteText(n.note); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Modifier"><Pencil size={14} /></button>
+                                <button onClick={async () => { if (!parcel) return; if (!window.confirm('Supprimer cette note ?')) return; await api.deleteParcelNote(parcel.id, n.id); setNotes(prev => prev.filter(x => x.id !== n.id)); }} className="p-1 rounded border hover:bg-gray-50" aria-label="Supprimer"><Trash2 size={14} /></button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Ajouter une note" className="flex-1 h-10 px-3 border rounded-lg" />
+                  <button onClick={async () => { if (!parcel || !noteText.trim()) return; const added = await api.addParcelNote(parcel.id, noteText.trim(), 'Agent'); setNotes(prev => [added, ...prev]); setNoteText(''); }} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Ajouter</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
