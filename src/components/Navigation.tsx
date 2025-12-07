@@ -15,15 +15,21 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
   ];
 
   return (
-    <nav className="bg-emerald-800 text-white shadow-lg">
+    <nav className="bg-white text-gray-900 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-xl font-bold">Ministère des Affaires Foncières</h1>
+            <div className="bg-white px-2 py-1">
+              <img
+                src="/img/logo.jpg"
+                alt="Logo Ministère des Affaires Foncières"
+                className="h-12 w-auto"
+              />
+            </div>
           </div>
         </div>
       </div>
-      <div className="border-t border-emerald-700">
+      <div className="border-t border-emerald-700 bg-emerald-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-4 py-2 overflow-x-auto">
             {menuItems.map((item) => {
