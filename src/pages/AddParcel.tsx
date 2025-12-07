@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as api from '../lib/api';
-import { Save, AlertCircle, CheckCircle, ChevronDown } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, ChevronDown, Upload, Image, FileText, Trash2 } from 'lucide-react';
 import type { ParcelInsert } from '../types/database';
 
 export default function AddParcel() {
@@ -32,6 +32,7 @@ export default function AddParcel() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [step, setStep] = useState(1);
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +40,10 @@ export default function AddParcel() {
     setMessage(null);
 
     try {
-      await api.createParcel(formData);
+      const created = await api.createParcel(formData);
+      if (attachments.length) {
+        await api.uploadParcelDocuments(created.id, attachments);
+      }
 
       setMessage({ type: 'success', text: 'Parcelle enregistrée avec succès!' });
       setFormData({
@@ -67,6 +71,7 @@ export default function AddParcel() {
         surveyor_license: '',
         cadastral_plan_ref: '',
       });
+      setAttachments([]);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue';
       setMessage({ type: 'error', text: errorMessage });
@@ -91,7 +96,7 @@ export default function AddParcel() {
       3: ['area','status','land_use'],
       4: ['title_date','acquisition_type','acquisition_act_ref'],
       5: ['owner_name','owner_id_number'],
-      6: ['surveying_pv_ref','surveyor_name','surveyor_license'],
+      6: [],
     };
     const keys = (requiredByStep[s] || []) as (keyof ParcelInsert)[];
     for (const k of keys) {
@@ -116,6 +121,17 @@ export default function AddParcel() {
   const handlePrev = () => {
     setMessage(null);
     setStep((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleFilesAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const filtered = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+    setAttachments(prev => [...prev, ...filtered]);
+    e.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   return (
@@ -404,17 +420,44 @@ export default function AddParcel() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="surveying_pv_ref" className="block text-sm font-semibold text-gray-700 mb-2">Réf. PV de Bornage <span className="text-red-500">*</span></label>
-                  <input type="text" id="surveying_pv_ref" name="surveying_pv_ref" value={formData.surveying_pv_ref} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                  <label htmlFor="surveying_pv_ref" className="block text-sm font-semibold text-gray-700 mb-2">Réf. PV de Bornage</label>
+                  <input type="text" id="surveying_pv_ref" name="surveying_pv_ref" value={formData.surveying_pv_ref} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                 </div>
                 <div>
-                  <label htmlFor="surveyor_name" className="block text-sm font-semibold text-gray-700 mb-2">Géomètre agréé <span className="text-red-500">*</span></label>
-                  <input type="text" id="surveyor_name" name="surveyor_name" value={formData.surveyor_name} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                  <label htmlFor="surveyor_name" className="block text-sm font-semibold text-gray-700 mb-2">Géomètre agréé</label>
+                  <input type="text" id="surveyor_name" name="surveyor_name" value={formData.surveyor_name} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
                 </div>
               </div>
               <div>
-                <label htmlFor="surveyor_license" className="block text-sm font-semibold text-gray-700 mb-2">N° d’agrément <span className="text-red-500">*</span></label>
-                <input type="text" id="surveyor_license" name="surveyor_license" value={formData.surveyor_license} onChange={handleChange} required className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+                <label htmlFor="surveyor_license" className="block text-sm font-semibold text-gray-700 mb-2">N° d’agrément</label>
+                <input type="text" id="surveyor_license" name="surveyor_license" value={formData.surveyor_license} onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Pièces jointes (images/PDF)</label>
+                <div className="flex items-center gap-3">
+                  <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-800 hover:bg-gray-50 cursor-pointer">
+                    <Upload size={18} />
+                    <span>Ajouter des fichiers</span>
+                    <input type="file" accept="image/*,application/pdf" multiple onChange={handleFilesAdd} className="hidden" />
+                  </label>
+                  <span className="text-xs text-gray-500">Jusqu’à 12 fichiers, 25 Mo chacun</span>
+                </div>
+                {attachments.length > 0 && (
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {attachments.map((file, i) => (
+                      <div key={i} className="border border-gray-200 rounded-lg p-3 flex items-center gap-3">
+                        {file.type === 'application/pdf' ? <FileText size={18} className="text-red-600" /> : <Image size={18} className="text-emerald-600" />}
+                        <div className="flex-1">
+                          <div className="text-sm text-gray-900 truncate">{file.name}</div>
+                          <div className="text-xs text-gray-500">{(file.size / (1024 * 1024)).toFixed(2)} Mo</div>
+                        </div>
+                        <button type="button" onClick={() => removeAttachment(i)} className="text-gray-500 hover:text-red-600">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between">
                 <button type="button" onClick={handlePrev} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-800 bg-white hover:bg-gray-50">Retour</button>

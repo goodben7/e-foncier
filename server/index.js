@@ -5,11 +5,14 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { randomUUID } from 'crypto'
+import multer from 'multer'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const dataDir = path.join(__dirname, '..', 'data')
+const uploadDir = path.join(dataDir, 'uploads')
 fs.mkdirSync(dataDir, { recursive: true })
+fs.mkdirSync(uploadDir, { recursive: true })
 const dbPath = path.join(dataDir, 'e_foncier.db')
 const db = new Database(dbPath)
 
@@ -117,6 +120,23 @@ ensureColumn('litigation', 'TEXT')
 const app = express()
 app.use(cors())
 app.use(express.json())
+app.use('/uploads', express.static(uploadDir))
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase()
+    cb(null, `${randomUUID()}${ext}`)
+  }
+})
+const upload = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf'
+    cb(null, ok)
+  }
+})
 
 app.get('/api/parcels', (req, res) => {
   const { status } = req.query
@@ -146,7 +166,7 @@ app.post('/api/parcels', (req, res) => {
   const required = [
     'parcel_number','province','territory_or_city','commune_or_sector','quartier_or_cheflieu','avenue',
     'area','status','land_use','acquisition_type',
-    'acquisition_act_ref','title_date','owner_name','owner_id_number','surveying_pv_ref','surveyor_name','surveyor_license'
+    'acquisition_act_ref','title_date','owner_name','owner_id_number'
   ]
   for (const k of required) {
     if (b[k] === undefined || b[k] === null || (typeof b[k] === 'string' && b[k].trim() === '')) {
@@ -159,6 +179,9 @@ app.post('/api/parcels', (req, res) => {
   const now = new Date().toISOString()
   const id = randomUUID()
   try {
+    const surveyingPvRef = typeof b.surveying_pv_ref === 'string' ? b.surveying_pv_ref : ''
+    const surveyorName = typeof b.surveyor_name === 'string' ? b.surveyor_name : ''
+    const surveyorLicense = typeof b.surveyor_license === 'string' ? b.surveyor_license : ''
     db.prepare(
       `INSERT INTO parcels (
         id, reference, parcel_number, province, territory_or_city, commune_or_sector, quartier_or_cheflieu, avenue,
@@ -171,8 +194,8 @@ app.post('/api/parcels', (req, res) => {
     ).run(
       id, ref, b.parcel_number, b.province, b.territory_or_city, b.commune_or_sector, b.quartier_or_cheflieu, b.avenue,
       gpsLat, gpsLong, b.area, b.location || null, b.status, b.land_use, certNum, issuingAuth, b.acquisition_type,
-      b.acquisition_act_ref, b.title_date, b.owner_name, b.owner_id_number, b.company_name || null, b.rccm || null, b.nif || null, b.surveying_pv_ref,
-      b.surveyor_name, b.surveyor_license, cadastralPlanRef, b.servitudes || null, b.charges || null, b.litigation || null, now, now
+      b.acquisition_act_ref, b.title_date, b.owner_name, b.owner_id_number, b.company_name || null, b.rccm || null, b.nif || null, surveyingPvRef,
+      surveyorName, surveyorLicense, cadastralPlanRef, b.servitudes || null, b.charges || null, b.litigation || null, now, now
     )
     const row = db.prepare('SELECT * FROM parcels WHERE id = ?').get(id)
     res.status(201).json(row)
@@ -182,6 +205,24 @@ app.post('/api/parcels', (req, res) => {
     }
     res.status(500).json({ error: 'Server error' })
   }
+})
+
+app.post('/api/parcels/:id/documents', upload.array('files', 12), (req, res) => {
+  const parcelId = req.params.id
+  const parcel = db.prepare('SELECT id FROM parcels WHERE id = ?').get(parcelId)
+  if (!parcel) return res.status(404).json({ error: 'Not found' })
+  const now = new Date().toISOString()
+  const files = Array.isArray(req.files) ? req.files : []
+  const inserted = []
+  for (const f of files) {
+    const type = f.mimetype === 'application/pdf' ? 'pdf' : 'image'
+    const id = randomUUID()
+    const relPath = path.join('uploads', path.basename(f.path))
+    db.prepare('INSERT INTO documents (id, parcel_id, type, file_path, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run(id, parcelId, type, relPath, now)
+    inserted.push({ id, parcel_id: parcelId, type, file_path: relPath, created_at: now })
+  }
+  res.status(201).json(inserted)
 })
 
 app.get('/api/requests', (req, res) => {

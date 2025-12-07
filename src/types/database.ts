@@ -70,9 +70,9 @@ export interface Database {
           company_name?: string | null
           rccm?: string | null
           nif?: string | null
-          surveying_pv_ref: string
-          surveyor_name: string
-          surveyor_license: string
+          surveying_pv_ref?: string
+          surveyor_name?: string
+          surveyor_license?: string
           cadastral_plan_ref: string
           servitudes?: string | null
           charges?: string | null
