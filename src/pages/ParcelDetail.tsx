@@ -156,7 +156,9 @@ export default function ParcelDetail({ onNavigate }: Props) {
     if (!validateRequired()) return;
     setSaving(true);
     try {
-      const updated = await api.updateParcel(parcel.id, form);
+      const prevStep = step;
+      const prevTab = secondaryTab;
+      await api.updateParcel(parcel.id, form);
       const changes: Record<string, { from: unknown; to: unknown }> = {};
       const keys = Object.keys(form);
       for (const k of keys) {
@@ -167,7 +169,9 @@ export default function ParcelDetail({ onNavigate }: Props) {
       if (Object.keys(changes).length > 0) {
         try { await api.addParcelHistory(parcel.id, changes, 'Agent'); } catch { void 0 }
       }
-      setParcel(updated);
+      await load();
+      setStep(prevStep);
+      setSecondaryTab(prevTab);
     } catch (e) {
       const msg = typeof (e as { message?: string })?.message === 'string' ? (e as { message?: string }).message : 'Erreur lors de la mise à jour';
       setError(msg ?? null);

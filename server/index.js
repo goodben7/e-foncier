@@ -517,6 +517,130 @@ app.post('/api/seed', (req, res) => {
     const acquisitions = ['Concession','Achat','Donation']
     const docTypesSeed = ['Copie du titre foncier','Certificat d’enregistrement','Attestation de propriété','Extrait du registre foncier','Copie du plan cadastral','Certificat de situation juridique','Attestation de non-litige','Historique des litiges sur une parcelle','Copie de décision administrative foncière','Certificat de mutation','Attestation de bornage','PV de bornage','Autre']
 
+    const citiesByProvince = {
+      'Kinshasa': ['Kinshasa'],
+      'Kongo Central': ['Matadi','Boma','Moanda','Mbanza-Ngungu','Kasangulu'],
+      'Kwango': ['Kenge','Kasongo-Lunda','Popokabaka'],
+      'Kwilu': ['Kikwit','Idiofa','Gungu'],
+      'Mai-Ndombe': ['Inongo','Kutu','Kwamouth'],
+      'Kasaï': ['Tshikapa','Luebo'],
+      'Kasaï Central': ['Kananga'],
+      'Kasaï Oriental': ['Mbuji-Mayi','Mwene-Ditu'],
+      'Lomami': ['Kabinda','Mwene-Ditu'],
+      'Sankuru': ['Lodja','Lusambo'],
+      'Maniema': ['Kindu','Kasongo','Kailo'],
+      'Sud-Kivu': ['Bukavu','Uvira','Baraka'],
+      'Nord-Kivu': ['Goma','Beni','Butembo'],
+      'Tanganyika': ['Kalemie','Moba'],
+      'Haut-Lomami': ['Kamina','Kaniama'],
+      'Lualaba': ['Kolwezi'],
+      'Haut-Katanga': ['Lubumbashi','Likasi','Kipushi'],
+      'Ituri': ['Bunia','Aru','Mahagi'],
+      'Tshopo': ['Kisangani','Isangi'],
+      'Bas-Uele': ['Buta','Aketi'],
+      'Haut-Uele': ['Isiro','Watsa','Dungu'],
+      'Mongala': ['Lisala','Bumba'],
+      'Nord-Ubangi': ['Gbadolite','Mobayi-Mbongo'],
+      'Sud-Ubangi': ['Gemena','Zongo'],
+      'Équateur': ['Mbandaka','Bikoro'],
+      'Tshuapa': ['Boende']
+    }
+    const communesByCity = {
+      'Kinshasa': ['Gombe','Ngaliema','Kintambo','Mont Ngafula','Lemba','Limete','Kisenso','Matete','Ndjili','Masina','Kimbanseke','Nsele','Bumbu','Selembao','Makala','Bandalungwa','Kalamu','Barumbu'],
+      'Lubumbashi': ['Lubumbashi','Kamalondo','Kenya','Ruashi','Katuba','Annexe'],
+      'Goma': ['Goma','Karisimbi'],
+      'Bukavu': ['Ibanda','Kadutu','Bagira'],
+      'Kisangani': ['Makiso','Tshopo','Kabondo','Mangobo','Lubunga'],
+      'Mbuji-Mayi': ['Dibindi','Diulu','Muya','Kanshi','Bipemba'],
+      'Kananga': ['Kananga','Nganza','Katoka','Ndesha'],
+      'Kolwezi': ['Kolwezi','Manika'],
+      'Bunia': ['Bunia','Bankoko','Nyakasanza']
+    }
+    const quartiersByCity = {
+      'Kinshasa': ['Delvaux','Matonge','Bon Marché','Kintambo Magasin','Kingabwa','Binza','UPN','Masina Sans Fil','Ndjili Cité','Bandal'],
+      'Lubumbashi': ['Golf','Kasapa','Katuba','Rwashi','Kamalondo','Kenya','Gécamines'],
+      'Goma': ['Himbi','Katindo','Birere','Keshero','Murara','Mapendo'],
+      'Bukavu': ['Cimpunda','Ndendere','Kadutu','Panzi','Cahi'],
+      'Kisangani': ['Kabondo','Mangobo','Plateau','Makiso','Lubunga'],
+      'Mbuji-Mayi': ['Bipemba','Diulu','Muya','Kanshi'],
+      'Kananga': ['Nganza','Katoka','Ndesha','Kananga'],
+      'Kolwezi': ['Manika','Dilungu','Quartier Industriel'],
+      'Bunia': ['Bankoko','Kindia','Nduru']
+    }
+    const avenuesByCity = {
+      'Kinshasa': ['Boulevard du 30 Juin','Avenue Kasa-Vubu','Avenue de l’Université','Avenue des Huileries','Boulevard Triomphal','Avenue Tshatshi','Avenue du Tourisme'],
+      'Lubumbashi': ['Avenue Sendwe','Avenue Lumumba','Avenue Kamanyola','Avenue Likasi','Boulevard Laurent Kabila'],
+      'Goma': ['Boulevard Kanyamuhanga','Avenue de la Corniche','Avenue des Volcans','Avenue du Lac'],
+      'Bukavu': ['Avenue de l’Indépendance','Avenue Patrice Lumumba','Avenue Kasa-Vubu'],
+      'Kisangani': ['Avenue de la Paix','Avenue des Martyrs','Avenue du Marché','Boulevard du 30 Juin'],
+      'Mbuji-Mayi': ['Avenue Kasaï','Avenue Lumumba','Avenue Kalonji'],
+      'Kananga': ['Avenue Lulua','Avenue Tshikapa','Avenue de la Concorde'],
+      'Kolwezi': ['Avenue Manika','Avenue Kolwezi','Avenue Likasi'],
+      'Bunia': ['Avenue de la Mission','Avenue de l’Hôpital','Avenue du Marché']
+    }
+    const cityCoords = {
+      'Kinshasa': [-4.32, 15.31],
+      'Lubumbashi': [-11.66, 27.48],
+      'Goma': [-1.68, 29.23],
+      'Bukavu': [-2.51, 28.86],
+      'Kisangani': [0.516, 25.19],
+      'Mbuji-Mayi': [-6.15, 23.60],
+      'Kananga': [-5.89, 22.41],
+      'Kolwezi': [-10.72, 25.47],
+      'Matadi': [-5.84, 13.46],
+      'Bunia': [1.56, 30.25],
+      'Mbandaka': [0.04, 18.26],
+      'Gbadolite': [4.28, 21.01],
+      'Gemena': [3.26, 19.77],
+      'Kamina': [-8.74, 24.99],
+      'Kalemie': [-5.95, 29.19],
+      'Kindu': [-2.95, 25.95],
+      'Uvira': [-3.38, 29.14],
+      'Butembo': [0.13, 29.28],
+      'Beni': [0.49, 29.47],
+      'Kipushi': [-11.77, 27.25],
+      'Likasi': [-10.98, 26.73],
+      'Tshikapa': [-6.41, 20.78],
+      'Kabinda': [-6.13, 24.47],
+      'Mwene-Ditu': [-6.98, 23.45],
+      'Isiro': [2.77, 27.62],
+      'Buta': [2.79, 24.73],
+      'Aketi': [2.74, 23.93],
+      'Lisala': [2.15, 19.9],
+      'Bumba': [2.18, 22.47],
+      'Boende': [-0.28, 20.88],
+      'Bikoro': [-1.73, 18.64],
+      'Moanda': [-5.94, 12.95],
+      'Boma': [-5.85, 13.05],
+      'Mbanza-Ngungu': [-5.25, 14.87],
+      'Kasangulu': [-4.58, 15.16],
+      'Kenge': [-4.83, 16.66],
+      'Kasongo-Lunda': [-6.47, 16.82],
+      'Popokabaka': [-5.61, 16.57],
+      'Kikwit': [-5.04, 18.82],
+      'Idiofa': [-5.01, 19.58],
+      'Gungu': [-5.57, 19.16],
+      'Inongo': [-1.94, 18.26],
+      'Kutu': [-2.17, 18.13],
+      'Kwamouth': [-3.01, 16.8],
+      'Luebo': [-5.35, 21.42],
+      'Lodja': [-3.48, 23.62],
+      'Kasongo': [-4.44, 26.66],
+      'Kailo': [-2.98, 26.1],
+      'Baraka': [-4.21, 28.96],
+      'Moba': [-7.06, 29.94],
+      'Kaniama': [-7.56, 24.18],
+      'Aru': [2.85, 30.8],
+      'Mahagi': [2.17, 31.38],
+      'Isangi': [0.53, 24.26]
+    }
+    const genericCities = ['Kinshasa','Lubumbashi','Goma','Bukavu','Kisangani','Mbuji-Mayi','Kananga','Kolwezi','Matadi','Bunia']
+    const genericCommunes = ['Centre','Nord','Sud','Est','Ouest']
+    const genericQuartiers = ['Quartier Résidentiel','Quartier Industriel','Quartier Commercial','Cité','Camp']
+    const genericAvenues = ['Boulevard du 30 Juin','Avenue Kasa-Vubu','Avenue Patrice Lumumba','Avenue Sendwe','Avenue de la Corniche']
+    const firstNames = ['Jean','Joseph','Patrick','Dieudonné','Alain','Prosper','Aimée','Chantal','Marie','Isabelle','André','Jacques','Paul','Eric','Serge']
+    const lastNames = ['Ilunga','Kasongo','Kabongo','Mbuyi','Mulumba','Banza','Kalonji','Lukusa','Katembo','Kanyinda','Lokondo','Mukendi','Kayembe','Nyembo','Mubenga']
+
     const reset = Boolean(req.body && req.body.reset)
     const nParcels = Number(req.body && req.body.parcels) || 30
     const nRequests = Number(req.body && req.body.requests) || 20
@@ -535,12 +659,17 @@ app.post('/api/seed', (req, res) => {
       const year = new Date().getFullYear()
       const ref = `SEED-${year}-${randomUUID().slice(0, 6)}`
       const prov = randOf(provinces)
-      const city = `Ville ${randInt(1, 20)}`
-      const commune = `Commune ${randInt(1, 10)}`
-      const quartier = `Quartier ${randInt(1, 30)}`
-      const avenue = `Avenue ${randInt(1, 200)}`
-      const gpsLat = Math.round((Math.random() * (5 - -13) + -13) * 100000) / 100000
-      const gpsLong = Math.round((Math.random() * (31 - 12) + 12) * 100000) / 100000
+      const cityList = citiesByProvince[prov] || genericCities
+      const city = randOf(cityList)
+      const communeList = communesByCity[city] || genericCommunes
+      const commune = randOf(communeList)
+      const quartierList = quartiersByCity[city] || genericQuartiers
+      const quartier = randOf(quartierList)
+      const avenueList = avenuesByCity[city] || genericAvenues
+      const avenue = randOf(avenueList)
+      const base = cityCoords[city] || cityCoords['Kinshasa']
+      const gpsLat = Math.round((base[0] + (Math.random() - 0.5) * 0.1) * 100000) / 100000
+      const gpsLong = Math.round((base[1] + (Math.random() - 0.5) * 0.1) * 100000) / 100000
       const area = randInt(200, 5000)
       const status = randOf(statuses)
       const land = randOf(landUses)
@@ -551,10 +680,10 @@ app.post('/api/seed', (req, res) => {
       const d = new Date()
       d.setMonth(d.getMonth() - randInt(0, 24))
       const titleDate = dateOnlyISO(d)
-      const ownerName = `Propriétaire ${randInt(1, 500)}`
+      const ownerName = `${randOf(firstNames)} ${randOf(lastNames)}`
       const ownerIdNumber = `ID-${randInt(100000, 999999)}`
       const pvRef = `PV-${randInt(1000, 9999)}`
-      const surveyorName = `Géomètre ${randInt(1, 200)}`
+      const surveyorName = `Géomètre ${randOf(firstNames)} ${randOf(lastNames)}`
       const surveyorLicense = `AGR-${randInt(10000, 99999)}`
       const planRef = `Feuille ${randInt(1, 50)} / Section ${randInt(1, 20)}`
 
@@ -610,7 +739,7 @@ app.post('/api/seed', (req, res) => {
 
     for (let i = 0; i < nRequests; i++) {
       const id = randomUUID()
-      const citizen = `Citoyen ${randInt(1, 1000)}`
+      const citizen = `${randOf(firstNames)} ${randOf(lastNames)}`
       const pref = randOf(parcelRefs)
       const dtype = randOf(docTypesSeed)
       const status = randOf(['En attente','Approuvé','Rejeté'])
