@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, ParcelUpdate, Document } from '../types/database';
-import { MapPin, Maximize2, FileText, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download } from 'lucide-react';
+import { MapPin, Maximize2, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download } from 'lucide-react';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -212,14 +212,10 @@ export default function ParcelDetail({ onNavigate }: Props) {
         <div className="lg:col-span-2">
           <div className="bg-white rounded-lg shadow-md border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
               <Tag size={16} className="text-emerald-700" />
               <span className="text-sm text-gray-800">{parcel.reference}</span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
-              <FileText size={16} className="text-gray-600" />
-              <span className="text-sm text-gray-800">{form.parcel_number || parcel.parcel_number}</span>
             </div>
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 border border-gray-200">
               <Maximize2 size={16} className="text-gray-600" />
@@ -235,16 +231,8 @@ export default function ParcelDetail({ onNavigate }: Props) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-start">
             <span className="text-sm font-medium text-gray-700">Étape {step + 1} / {steps.length} — {steps[step]}</span>
-            <div className="flex gap-2">
-              <button disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))} className={`px-3 py-2 rounded-lg border ${step === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
-                <ChevronLeft size={16} /> Préc.
-              </button>
-              <button disabled={step === steps.length - 1} onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} className={`px-3 py-2 rounded-lg border ${step === steps.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
-                Suiv. <ChevronRight size={16} />
-              </button>
-            </div>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full mt-3">
             <div className="h-2 bg-emerald-600 rounded-full" style={{ width: `${Math.round(((step + 1) / steps.length) * 100)}%` }} />
@@ -332,35 +320,45 @@ export default function ParcelDetail({ onNavigate }: Props) {
               </div>
               <div>
                 <span className="text-xs text-gray-600 flex items-center gap-1">Affectation <span title="Destination de la parcelle"><Info size={14} className="text-gray-400" /></span></span>
-                <div className="relative">
-                  <button type="button" onClick={() => setLandUseOpen(s => !s)} aria-haspopup="listbox" aria-expanded={landUseOpen} className="w-full h-10 px-3 border rounded-lg flex items-center justify-between">
-                    <span className="inline-flex items-center gap-2">
-                      {(() => {
-                        const v = form.land_use || parcel.land_use
-                        if (v === 'Résidentiel') return <Home size={14} className="text-gray-600" />
-                        if (v === 'Commercial') return <Building2 size={14} className="text-gray-600" />
-                        if (v === 'Agricole') return <Leaf size={14} className="text-gray-600" />
-                        return <Layers size={14} className="text-gray-600" />
-                      })()}
-                      <span className="text-sm">{form.land_use || parcel.land_use}</span>
-                    </span>
-                    <ChevronDown size={16} className="text-gray-500" />
-                  </button>
-                  {landUseOpen && (
-                    <div role="listbox" className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
-                      {[
-                        { v: 'Résidentiel', I: <Home size={14} className="text-gray-600" /> },
-                        { v: 'Commercial', I: <Building2 size={14} className="text-gray-600" /> },
-                        { v: 'Agricole', I: <Leaf size={14} className="text-gray-600" /> },
-                        { v: 'Mixte', I: <Layers size={14} className="text-gray-600" /> },
-                      ].map(({ v, I }) => (
-                        <div key={v} role="option" aria-selected={(form.land_use || parcel.land_use) === v} onClick={() => { setField('land_use', v); setLandUseOpen(false); }} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2">
-                          {I}
-                          <span className="text-sm">{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <button type="button" onClick={() => setLandUseOpen(s => !s)} aria-haspopup="listbox" aria-expanded={landUseOpen} className="w-full h-10 px-3 border rounded-lg flex items-center justify-between">
+                      <span className="inline-flex items-center gap-2">
+                        {(() => {
+                          const v = form.land_use || parcel.land_use
+                          if (v === 'Résidentiel') return <Home size={14} className="text-gray-600" />
+                          if (v === 'Commercial') return <Building2 size={14} className="text-gray-600" />
+                          if (v === 'Agricole') return <Leaf size={14} className="text-gray-600" />
+                          return <Layers size={14} className="text-gray-600" />
+                        })()}
+                        <span className="text-sm">{form.land_use || parcel.land_use}</span>
+                      </span>
+                      <ChevronDown size={16} className="text-gray-500" />
+                    </button>
+                    {landUseOpen && (
+                      <div role="listbox" className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg">
+                        {[
+                          { v: 'Résidentiel', I: <Home size={14} className="text-gray-600" /> },
+                          { v: 'Commercial', I: <Building2 size={14} className="text-gray-600" /> },
+                          { v: 'Agricole', I: <Leaf size={14} className="text-gray-600" /> },
+                          { v: 'Mixte', I: <Layers size={14} className="text-gray-600" /> },
+                        ].map(({ v, I }) => (
+                          <div key={v} role="option" aria-selected={(form.land_use || parcel.land_use) === v} onClick={() => { setField('land_use', v); setLandUseOpen(false); }} className="px-3 py-2 hover:bg-gray-50 cursor-pointer flex items-center gap-2">
+                            {I}
+                            <span className="text-sm">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 ml-auto shrink-0">
+                    <button disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))} className={`px-3 py-2 rounded-lg border ${step === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
+                      <ChevronLeft size={16} /> Préc.
+                    </button>
+                    <button disabled={step === steps.length - 1} onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} className={`px-3 py-2 rounded-lg border ${step === steps.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
+                      Suiv. <ChevronRight size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -509,14 +507,14 @@ export default function ParcelDetail({ onNavigate }: Props) {
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <button onClick={() => { if (!hasChanges() || window.confirm('Êtes-vous sûr de vouloir annuler ?')) onNavigate('parcels-list'); }} className="px-4 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
             <button onClick={() => setReportOpen(true)} className="text-emerald-700 underline">Signaler un problème</button>
           </div>
           <button onClick={save} disabled={saving} className={`px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 shadow-sm ${saving ? 'opacity-70 cursor-not-allowed' : ''}`} aria-label="Enregistrer les modifications">
             <Save size={16} /> Enregistrer
           </button>
-          </div>
+        </div>
         </div>
         </div>
         <div className="lg:col-span-1">

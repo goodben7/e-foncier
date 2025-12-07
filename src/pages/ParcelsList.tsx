@@ -146,8 +146,8 @@ export default function ParcelsList({ onNavigate }: { onNavigate: (page: string)
                 <div className="flex items-start gap-2">
                   <Hash size={18} className="text-gray-500 mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-xs text-gray-500">Titre foncier</p>
-                    <p className="text-sm font-medium text-gray-900">{parcel.certificate_number}</p>
+                    <p className="text-xs text-gray-500">Affectation</p>
+                    <p className="text-sm font-medium text-gray-900">{parcel.land_use}</p>
                   </div>
                 </div>
 
