@@ -300,25 +300,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
           </div>
 
           <div className="px-6 py-4">
-          {(() => {
-            const lat = (form.gps_lat ?? parcel.gps_lat) as number | undefined
-            const lon = (form.gps_long ?? parcel.gps_long) as number | undefined
-            const valid = typeof lat === 'number' && Number.isFinite(lat) && typeof lon === 'number' && Number.isFinite(lon)
-            if (!valid) return null
-            const delta = 0.01
-            const bbox = `${lon - delta},${lat - delta},${lon + delta},${lat + delta}`
-            const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik`
-            const fullUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=16/${lat}/${lon}`
-            return (
-              <div className="mb-6">
-                <div className="flex items-center gap-2 mb-2"><MapPin size={16} className="text-gray-500" /><span className="text-sm font-medium text-gray-700">Mini-carte</span></div>
-                <div className="h-52 border rounded-lg overflow-hidden">
-                  <iframe title="Carte de la parcelle" src={embedUrl} className="w-full h-full" />
-                </div>
-                <a href={fullUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-emerald-700 underline">Ouvrir dans OpenStreetMap</a>
-              </div>
-            )
-          })()}
+          
 
           {step === 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
