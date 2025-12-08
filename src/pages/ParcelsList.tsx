@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, Document } from '../types/database';
-import { MapPin, Maximize2, User, FileText, Hash, Filter, Search as SearchIcon, Calendar, Layers, SortAsc, SortDesc, Download, Map, List as ListIcon } from 'lucide-react';
+import { MapPin, Maximize2, User, FileText, Hash, Filter, Search as SearchIcon, Calendar, Layers, SortAsc, SortDesc, Download, Map, List as ListIcon, X, AlertTriangle, ChevronDown } from 'lucide-react';
 
 export default function ParcelsList({ onNavigate }: { onNavigate: (page: string) => void }) {
   const [parcels, setParcels] = useState<Parcel[]>([]);
@@ -218,102 +218,169 @@ export default function ParcelsList({ onNavigate }: { onNavigate: (page: string)
           <button onClick={() => setAdvOpen(v => !v)} className="inline-flex items-center gap-2 px-3 py-2 rounded-md border text-sm hover:bg-gray-50"><Filter size={14} /> Filtres avancés</button>
         </div>
         {advOpen && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6 bg-white border rounded-lg p-4">
-            <div>
-              <label className="text-xs text-gray-600">Province</label>
-              <select value={province} onChange={e => setProvince(e.target.value)} className="w-full h-10 px-3 border rounded-lg">
-                <option value="">Toutes</option>
-                {provinces.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Ville / Territoire</label>
-              <select value={city} onChange={e => setCity(e.target.value)} className="w-full h-10 px-3 border rounded-lg">
-                <option value="">Tous</option>
-                {cities.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Affectation</label>
-              <select value={landUse} onChange={e => setLandUse(e.target.value)} className="w-full h-10 px-3 border rounded-lg">
-                <option value="">Toutes</option>
-                {landUses.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Propriétaire</label>
-              <input value={owner} onChange={e => setOwner(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Géomètre</label>
-              <input value={surveyor} onChange={e => setSurveyor(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Litiges (texte)</label>
-              <input value={litigationText} onChange={e => setLitigationText(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Créée depuis</label>
-              <div className="relative">
-                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" />
+          <div className="mb-6 bg-white border rounded-lg p-4 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-gray-600">Province</label>
+                <div className="relative">
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select value={province} onChange={e => setProvince(e.target.value)} aria-label="Filtrer par province" className="w-full h-10 pl-9 pr-10 bg-white border border-gray-300 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400">
+                    <option value="">Toutes</option>
+                    {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  {province && (<button onClick={() => setProvince('')} className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100" aria-label="Effacer province"><X size={12} className="text-gray-500" /></button>)}
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Ville / Territoire</label>
+                <div className="relative">
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select value={city} onChange={e => setCity(e.target.value)} aria-label="Filtrer par ville ou territoire" className="w-full h-10 pl-9 pr-10 bg-white border border-gray-300 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400">
+                    <option value="">Tous</option>
+                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  {city && (<button onClick={() => setCity('')} className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100" aria-label="Effacer ville"><X size={12} className="text-gray-500" /></button>)}
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Affectation</label>
+                <div className="relative">
+                  <Layers size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <select value={landUse} onChange={e => setLandUse(e.target.value)} aria-label="Filtrer par affectation" className="w-full h-10 pl-9 pr-10 bg-white border border-gray-300 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400">
+                    <option value="">Toutes</option>
+                    {landUses.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                  {landUse && (<button onClick={() => setLandUse('')} className="absolute right-8 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100" aria-label="Effacer affectation"><X size={12} className="text-gray-500" /></button>)}
+                  <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Propriétaire</label>
+                <div className="relative">
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={owner} onChange={e => setOwner(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" placeholder="Ex: Jacques Banza" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Géomètre</label>
+                <div className="relative">
+                  <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={surveyor} onChange={e => setSurveyor(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" placeholder="Ex: Jean Mbayo" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Litiges (texte)</label>
+                <div className="relative">
+                  <AlertTriangle size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input value={litigationText} onChange={e => setLitigationText(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" placeholder="Ex: conflit de limites" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Créée depuis</label>
+                <div className="relative">
+                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Créée jusqu’à</label>
+                <div className="relative">
+                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Superficie min (m²)</label>
+                <input type="number" min={0} value={areaMin} onChange={e => setAreaMin(e.target.value)} className="w-full h-10 px-3 border rounded-lg text-sm" />
+                <div className="mt-1 flex gap-2">
+                  {[0,500,1000,2000].map(n => <button key={n} onClick={() => setAreaMin(String(n))} className={`px-2 py-1 rounded border text-xs ${areaMin === String(n) ? 'bg-emerald-600 text-white border-emerald-600' : 'hover:bg-gray-50'}`}>{n}</button>)}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Superficie max (m²)</label>
+                <input type="number" min={0} value={areaMax} onChange={e => setAreaMax(e.target.value)} className="w-full h-10 px-3 border rounded-lg text-sm" />
+                <div className="mt-1 flex gap-2">
+                  {[500,1000,2000,5000].map(n => <button key={n} onClick={() => setAreaMax(String(n))} className={`px-2 py-1 rounded border text-xs ${areaMax === String(n) ? 'bg-emerald-600 text-white border-emerald-600' : 'hover:bg-gray-50'}`}>{n}</button>)}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Statut de validation</label>
+                <div className="flex items-center gap-1 bg-gray-50 rounded-md p-1">
+                  <button onClick={() => setValidation('any')} className={`px-3 h-8 rounded ${validation==='any' ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-700'} text-xs font-medium`}>Tous</button>
+                  <button onClick={() => setValidation('validated')} className={`px-3 h-8 rounded ${validation==='validated' ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-700'} text-xs font-medium`}>Validées</button>
+                  <button onClick={() => setValidation('pending')} className={`px-3 h-8 rounded ${validation==='pending' ? 'bg-emerald-600 text-white' : 'hover:bg-gray-100 text-gray-700'} text-xs font-medium`}>En attente</button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600">Documents manquants</label>
+                <button onClick={() => setDocsMissingOnly(v => !v)} className={`w-full h-10 px-3 rounded-lg border text-xs font-medium flex items-center gap-2 ${docsMissingOnly ? 'bg-red-50 border-red-200 text-red-700' : 'hover:bg-gray-50 text-gray-700'}`}><FileText size={14} /> Afficher uniquement les parcelles sans document</button>
               </div>
             </div>
-            <div>
-              <label className="text-xs text-gray-600">Créée jusqu’à</label>
-              <div className="relative">
-                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-full h-10 pl-9 pr-3 border rounded-lg text-sm" />
-              </div>
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              {province && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Province: {province}<button onClick={() => setProvince('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer province"><X size={12} /></button></span>
+              )}
+              {city && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Ville/Territoire: {city}<button onClick={() => setCity('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer ville"><X size={12} /></button></span>
+              )}
+              {landUse && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Affectation: {landUse}<button onClick={() => setLandUse('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer affectation"><X size={12} /></button></span>
+              )}
+              {owner && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Propriétaire: {owner}<button onClick={() => setOwner('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer propriétaire"><X size={12} /></button></span>
+              )}
+              {surveyor && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Géomètre: {surveyor}<button onClick={() => setSurveyor('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer géomètre"><X size={12} /></button></span>
+              )}
+              {litigationText && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Litiges: “{litigationText}”<button onClick={() => setLitigationText('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer litiges"><X size={12} /></button></span>
+              )}
+              {dateFrom && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Depuis: {dateFrom}<button onClick={() => setDateFrom('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer depuis"><X size={12} /></button></span>
+              )}
+              {dateTo && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Jusqu’à: {dateTo}<button onClick={() => setDateTo('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer jusqu"><X size={12} /></button></span>
+              )}
+              {areaMin && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Min: {areaMin} m²<button onClick={() => setAreaMin('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer min"><X size={12} /></button></span>
+              )}
+              {areaMax && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Max: {areaMax} m²<button onClick={() => setAreaMax('')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer max"><X size={12} /></button></span>
+              )}
+              {validation !== 'any' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Validation: {validation==='validated' ? 'Validées' : 'En attente'}<button onClick={() => setValidation('any')} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer validation"><X size={12} /></button></span>
+              )}
+              {docsMissingOnly && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border">Sans documents<button onClick={() => setDocsMissingOnly(false)} className="ml-1 p-0.5 rounded hover:bg-gray-100" aria-label="Effacer documents"><X size={12} /></button></span>
+              )}
             </div>
-            <div>
-              <label className="text-xs text-gray-600">Superficie min (m²)</label>
-              <input type="number" min={0} value={areaMin} onChange={e => setAreaMin(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
-              <div className="mt-1 flex gap-2">
-                {[0,500,1000,2000].map(n => <button key={n} onClick={() => setAreaMin(String(n))} className="px-2 py-1 rounded border text-xs hover:bg-gray-50">{n}</button>)}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Superficie max (m²)</label>
-              <input type="number" min={0} value={areaMax} onChange={e => setAreaMax(e.target.value)} className="w-full h-10 px-3 border rounded-lg" />
-              <div className="mt-1 flex gap-2">
-                {[500,1000,2000,5000].map(n => <button key={n} onClick={() => setAreaMax(String(n))} className="px-2 py-1 rounded border text-xs hover:bg-gray-50">{n}</button>)}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Statut de validation</label>
-              <div className="flex items-center gap-2">
-                <label className="text-xs"><input type="radio" checked={validation==='any'} onChange={() => setValidation('any')} /> <span className="ml-1">Tous</span></label>
-                <label className="text-xs"><input type="radio" checked={validation==='validated'} onChange={() => setValidation('validated')} /> <span className="ml-1">Validées</span></label>
-                <label className="text-xs"><input type="radio" checked={validation==='pending'} onChange={() => setValidation('pending')} /> <span className="ml-1">En attente</span></label>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-gray-600">Documents manquants</label>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" checked={docsMissingOnly} onChange={e => setDocsMissingOnly(e.target.checked)} />
-                <span className="text-xs">Afficher uniquement les parcelles sans document</span>
-              </div>
-            </div>
-            <div className="md:col-span-2 lg:col-span-3 flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Layers size={16} className="text-gray-500" />
                 <span className="text-sm text-gray-700">Résultats: {total}</span>
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-gray-600">Tri</label>
-                <select value={sortBy} onChange={e => setSortBy(e.target.value as 'reference' | 'area' | 'created_at')} className="h-9 px-2 border rounded">
+                <div className="relative h-9">
+                  <select value={sortBy} onChange={e => setSortBy(e.target.value as 'reference' | 'area' | 'created_at')} aria-label="Trier les parcelles" className="h-9 pl-2 pr-8 bg-white border border-gray-300 rounded text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400">
                   <option value="created_at">Date de création</option>
                   <option value="reference">Référence</option>
                   <option value="area">Superficie</option>
-                </select>
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
                 <button onClick={() => setSortDir(d => d==='asc' ? 'desc' : 'asc')} className="h-9 w-9 rounded border flex items-center justify-center hover:bg-gray-50" title="Inverser l’ordre">
                   {sortDir === 'asc' ? <SortAsc size={16} /> : <SortDesc size={16} />}
                 </button>
                 <label className="text-xs text-gray-600">Page</label>
-                <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} className="h-9 px-2 border rounded">
-                  {[6,12,24,36].map(n => <option key={n} value={n}>{n}/page</option>)}
-                </select>
+                <div className="relative h-9">
+                  <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} aria-label="Taille de page" className="h-9 pl-2 pr-8 bg-white border border-gray-300 rounded text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 hover:border-emerald-400">
+                    {[6,12,24,36].map(n => <option key={n} value={n}>{n}/page</option>)}
+                  </select>
+                  <ChevronDown size={14} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                </div>
                 <button onClick={() => {
                   const rows = sorted.map(p => ({
                     reference: p.reference,
@@ -326,7 +393,7 @@ export default function ParcelsList({ onNavigate }: { onNavigate: (page: string)
                   }));
                   const headers = Object.keys(rows[0] || {});
                   const lines = rows.map(r => headers.map(h => `"${String((r as Record<string, unknown>)[h] ?? '').replace(/"/g,'""')}"`).join(','));
-                  const csv = [headers.join(','), ...lines].join('\n');
+                  const csv = [headers.join(',') , ...lines].join('\n');
                   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');

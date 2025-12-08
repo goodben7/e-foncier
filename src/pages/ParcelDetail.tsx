@@ -554,17 +554,19 @@ export default function ParcelDetail({ onNavigate }: Props) {
           <div className="px-6 py-4">
             {secondaryTab === 'history' ? (
               <>
-                <div className="mb-1 flex items-center gap-2 flex-wrap md:flex-nowrap">
+                <div className="mb-2 flex items-center gap-2 md:flex-nowrap">
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs"><Filter size={12} /> Filtres</span>
-                  <div className="relative w-[130px] md:w-[150px]">
+                  <div className="relative w-[110px] md:w-[130px]">
                     <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input type="date" value={historyDateFrom} onChange={e => setHistoryDateFrom(e.target.value)} className="h-8 pl-8 pr-2 border rounded-lg text-xs w-full" aria-label="Filtrer depuis la date" />
                   </div>
-                  <div className="relative w-[130px] md:w-[150px]">
+                  <div className="relative w-[110px] md:w-[130px]">
                     <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input type="date" value={historyDateTo} onChange={e => setHistoryDateTo(e.target.value)} className="h-8 pl-8 pr-2 border rounded-lg text-xs w-full" aria-label="Filtrer jusqu’à la date" />
                   </div>
-                  <button onClick={() => { setHistoryDateFrom(''); setHistoryDateTo(''); }} className="h-8 px-3 rounded-lg border text-xs hover:bg-gray-50">Effacer</button>
+                  <div className="ml-auto">
+                    <button onClick={() => { setHistoryDateFrom(''); setHistoryDateTo(''); }} className="h-8 w-8 rounded-lg border text-xs hover:bg-gray-50 flex items-center justify-center" aria-label="Effacer filtres"><Trash2 size={12} /></button>
+                  </div>
                 </div>
                 <div className="space-y-2 max-h-56 overflow-auto">
                   {history.length === 0 ? (
@@ -582,16 +584,19 @@ export default function ParcelDetail({ onNavigate }: Props) {
                         items = Object.keys(obj).slice(0, 6).map(k => fieldLabel(k));
                       } catch { items = []; }
                       return (
-                        <div key={h.id} className="text-xs text-gray-700">
+                        <div key={h.id} className="bg-white rounded-md border border-gray-200 p-3 text-xs text-gray-700">
                           <div className="flex items-center justify-between">
                             <span className="font-medium">{h.user}</span>
-                            <span className="text-gray-500">{new Date(h.changed_at).toLocaleString('fr-FR')}</span>
+                            <span className="inline-flex items-center gap-1 text-gray-500"><Clock size={12} /> {new Date(h.changed_at).toLocaleString('fr-FR')}</span>
                           </div>
                           {items.length > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1">
-                              {items.map((label) => (
-                                <span key={label} className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700">{label}</span>
-                              ))}
+                            <div className="mt-2">
+                              <span className="text-gray-600">Champs modifiés:</span>
+                              <div className="mt-1 flex flex-wrap gap-2">
+                                {items.map((label) => (
+                                  <span key={label} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-50 border text-gray-700">{label}</span>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </div>
