@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, ParcelUpdate, Document } from '../types/database';
-import { MapPin, Maximize2, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download, Filter, Calendar } from 'lucide-react';
+import { MapPin, Maximize2, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download, Filter, Calendar, Mail, Phone } from 'lucide-react';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -20,6 +20,16 @@ export default function ParcelDetail({ onNavigate }: Props) {
   const [noteText, setNoteText] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState('');
+  const [reportType, setReportType] = useState('Données incorrectes');
+  const [reportOther, setReportOther] = useState('');
+  const [reportFiles, setReportFiles] = useState<File[]>([]);
+  const [reportEmail, setReportEmail] = useState('');
+  const [reportPhone, setReportPhone] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [descError, setDescError] = useState('');
+  const [reportSuccess, setReportSuccess] = useState('');
   const [historyDateFrom, setHistoryDateFrom] = useState('');
   const [historyDateTo, setHistoryDateTo] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -71,6 +81,21 @@ export default function ParcelDetail({ onNavigate }: Props) {
     litigation: 'Litiges',
   };
   const fieldLabel = (k: string) => fieldLabels[k] || k;
+
+  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePhone = (phone: string) => /^\+?\d[\d\s]{6,}$/.test(phone);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setReportOpen(false);
+    };
+    if (reportOpen) {
+      window.addEventListener('keydown', onKey);
+    }
+    return () => {
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [reportOpen]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -514,12 +539,136 @@ export default function ParcelDetail({ onNavigate }: Props) {
           
 
           {reportOpen && (
-            <div className="mt-4 border rounded-lg p-3">
-              <div className="text-sm font-medium text-gray-700 mb-2">Signaler un problème</div>
-              <textarea value={reportText} onChange={e => setReportText(e.target.value)} placeholder="Décrivez le problème rencontré" className="w-full h-24 px-3 py-2 border rounded-lg" />
-              <div className="mt-2 flex gap-2">
-                <button onClick={async () => { if (!parcel || !reportText.trim()) return; const added = await api.addParcelNote(parcel.id, `Signalement: ${reportText.trim()}`, 'Citoyen'); setNotes(prev => [added, ...prev]); setReportText(''); setReportOpen(false); }} className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Envoyer</button>
-                <button onClick={() => setReportOpen(false)} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
+            <div className="fixed inset-0 z-50">
+              <div className="absolute inset-0 bg-black/40" onClick={() => setReportOpen(false)}></div>
+              <div role="dialog" aria-modal="true" className="absolute inset-0 flex items-center justify-center p-4">
+                <div className="w-full max-w-2xl bg-white rounded-lg shadow-xl border">
+                  <div className="flex items-center justify-between px-4 py-3 border-b">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-900"><AlertTriangle size={16} className="text-orange-600" /> Signaler un problème</div>
+                    <button onClick={() => setReportOpen(false)} className="p-2 rounded hover:bg-gray-100" aria-label="Fermer"><X size={18} className="text-gray-600" /></button>
+                  </div>
+                  <div className="p-4 max-h-[80vh] overflow-auto">
+                    {reportSuccess && (
+                      <div className="mb-3 px-3 py-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm" aria-live="polite">{reportSuccess}</div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1">Type <span title="Quels types de problèmes pouvez-vous signaler ?"><AlertCircle size={12} className="text-gray-400" /></span></label>
+                        <div className="relative">
+                          <select
+                            value={reportType}
+                            onChange={e => setReportType(e.target.value)}
+                            className="w-full h-10 pl-3 pr-8 bg-white border border-gray-300 rounded-lg text-sm appearance-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                          >
+                            <option>Données incorrectes</option>
+                            <option>Conflit de limites</option>
+                            <option>Document manquant</option>
+                            <option>Autre</option>
+                          </select>
+                          <ChevronDown size={16} className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
+                        </div>
+                        {reportType === 'Autre' && (
+                          <input
+                            value={reportOther}
+                            onChange={e => setReportOther(e.target.value)}
+                            className="mt-2 w-full h-10 px-3 border rounded-lg"
+                            placeholder="Précisez le type"
+                          />
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1"><Paperclip size={12} className="text-gray-400" /> Pièces jointes</label>
+                        <div className="flex items-center gap-2">
+                          <input type="file" multiple accept=".pdf,image/*" onChange={e => setReportFiles(e.target.files ? Array.from(e.target.files) : [])} className="flex-1 px-3 py-2 border rounded-lg bg-white" />
+                        </div>
+                        {reportFiles.length > 0 && (
+                          <div className="mt-2 space-y-1 max-h-48 overflow-auto">
+                            {reportFiles.map((f, i) => (
+                              <div key={`${f.name}-${i}`} className="flex items-center justify-between text-xs text-gray-700 border rounded px-2 py-1">
+                                <span className="flex items-center gap-1"><Paperclip size={12} className="text-gray-400" /> {f.name}</span>
+                                <button className="p-1 rounded hover:bg-gray-100" aria-label="Retirer fichier" onClick={() => setReportFiles(prev => prev.filter((_, idx) => idx !== i))}><X size={12} className="text-gray-500" /></button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1"><Mail size={12} className="text-gray-400" /> Email</label>
+                        <input
+                          type="email"
+                          value={reportEmail}
+                          onChange={e => { const v = e.target.value; setReportEmail(v); setEmailError(v.trim() ? (validateEmail(v) ? '' : 'Email invalide') : 'Champ obligatoire'); }}
+                          className={`w-full h-10 px-3 border rounded-lg ${emailError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                          placeholder="Ex: citoyen@example.com"
+                          aria-invalid={!!emailError}
+                          aria-describedby={emailError ? 'report-email-error' : undefined}
+                        />
+                        {emailError && <div id="report-email-error" className="mt-1 text-xs text-red-600">{emailError}</div>}
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1 flex items-center gap-1"><Phone size={12} className="text-gray-400" /> Téléphone</label>
+                        <input
+                          type="tel"
+                          value={reportPhone}
+                          onChange={e => { const v = e.target.value; setReportPhone(v); setPhoneError(v.trim() ? (validatePhone(v) ? '' : 'Numéro invalide') : 'Champ obligatoire'); }}
+                          className={`w-full h-10 px-3 border rounded-lg ${phoneError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                          placeholder="Ex: +243 900 000 000"
+                          aria-invalid={!!phoneError}
+                          aria-describedby={phoneError ? 'report-phone-error' : undefined}
+                        />
+                        {phoneError && <div id="report-phone-error" className="mt-1 text-xs text-red-600">{phoneError}</div>}
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <textarea
+                        value={reportText}
+                        onChange={e => { const v = e.target.value; setReportText(v); setDescError(v.trim() ? '' : 'Description obligatoire'); }}
+                        placeholder="Décrivez le problème rencontré"
+                        className={`w-full h-24 px-3 py-2 border rounded-lg ${descError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                        autoFocus
+                        aria-invalid={!!descError}
+                        aria-describedby={descError ? 'report-desc-error' : undefined}
+                      />
+                      {descError && <div id="report-desc-error" className="mt-1 text-xs text-red-600">{descError}</div>}
+                    </div>
+                    <div className="mt-3 flex gap-2 justify-end">
+                      <button onClick={async () => {
+                        if (!parcel) return;
+                        const emailOk = reportEmail.trim() && validateEmail(reportEmail);
+                        const phoneOk = reportPhone.trim() && validatePhone(reportPhone);
+                        const descOk = reportText.trim().length > 0;
+                        setEmailError(emailOk ? '' : (reportEmail.trim() ? 'Email invalide' : 'Champ obligatoire'));
+                        setPhoneError(phoneOk ? '' : (reportPhone.trim() ? 'Numéro invalide' : 'Champ obligatoire'));
+                        setDescError(descOk ? '' : 'Description obligatoire');
+                        if (!emailOk || !phoneOk || !descOk) return;
+                        setReportSending(true);
+                        try {
+                          const contact = [reportEmail.trim(), reportPhone.trim()].filter(Boolean).join(' | ');
+                          const typeString = reportType + (reportType === 'Autre' && reportOther.trim() ? ` (${reportOther.trim()})` : '');
+                          const note = `Signalement (${typeString || 'Non spécifié'}): ${reportText.trim()}${contact ? `\nContact: ${contact}` : ''}`;
+                          const added = await api.addParcelNote(parcel.id, note, 'Citoyen');
+                          setNotes(prev => [added, ...prev]);
+                          if (reportFiles.length > 0) {
+                            const types = reportFiles.map(() => 'Signalement');
+                            await api.uploadParcelDocuments(parcel.id, reportFiles, types);
+                          }
+                          setReportText('');
+                          setReportFiles([]);
+                          setReportEmail('');
+                          setReportPhone('');
+                          setReportOther('');
+                          setReportType('Données incorrectes');
+                          setReportSuccess('Signalement envoyé. Merci. Une confirmation sera transmise à vos coordonnées.');
+                        } catch (e) {
+                          setError(e instanceof Error ? e.message : 'Erreur lors de l\u2019envoi du signalement');
+                        } finally {
+                          setReportSending(false);
+                        }
+                      }} disabled={reportSending || !!emailError || !!phoneError || !!descError || !reportEmail.trim() || !reportPhone.trim() || !reportText.trim()} className="px-3 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">Envoyer</button>
+                      <button onClick={() => setReportOpen(false)} className="px-3 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -529,7 +678,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
           <div className="flex items-center gap-3 flex-wrap">
             <button onClick={() => { if (!hasChanges() || window.confirm('Êtes-vous sûr de vouloir annuler ?')) onNavigate('parcels-list'); }} className="px-4 py-2 rounded-lg border hover:bg-gray-50">Annuler</button>
-            <button onClick={() => setReportOpen(true)} className="text-emerald-700 underline">Signaler un problème</button>
+            <button onClick={() => setReportOpen(true)} className="px-3 py-2 rounded-lg border hover:bg-gray-50 text-emerald-700 flex items-center gap-1"><AlertTriangle size={14} /> Signaler un problème</button>
           </div>
           <button onClick={save} disabled={saving} className={`px-5 py-2.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-2 shadow-sm ${saving ? 'opacity-70 cursor-not-allowed' : ''}`} aria-label="Enregistrer les modifications">
             <Save size={16} /> Enregistrer
