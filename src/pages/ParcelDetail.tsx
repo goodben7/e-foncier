@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as api from '../lib/api';
 import type { Parcel, ParcelUpdate, Document } from '../types/database';
-import { MapPin, Maximize2, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download } from 'lucide-react';
+import { MapPin, Maximize2, X, ChevronLeft, ChevronRight, Save, Edit, Info, AlertCircle, Clock, MessageSquare, Tag, Pencil, Trash2, ChevronDown, CheckCircle, Lock, AlertTriangle, Home, Building2, Leaf, Layers, Paperclip, Download, Filter, Calendar } from 'lucide-react';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -20,7 +20,6 @@ export default function ParcelDetail({ onNavigate }: Props) {
   const [noteText, setNoteText] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
   const [reportText, setReportText] = useState('');
-  const [historyFilterText, setHistoryFilterText] = useState('');
   const [historyDateFrom, setHistoryDateFrom] = useState('');
   const [historyDateTo, setHistoryDateTo] = useState('');
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -38,6 +37,40 @@ export default function ParcelDetail({ onNavigate }: Props) {
     'Levés cadastraux',
     'Servitudes et charges',
   ];
+
+  const fieldLabels: Record<string, string> = {
+    reference: 'Référence',
+    parcel_number: 'Numéro de parcelle',
+    province: 'Province',
+    territory_or_city: 'Ville / Territoire',
+    commune_or_sector: 'Commune / Secteur',
+    quartier_or_cheflieu: 'Quartier / Cheflieu',
+    avenue: 'Avenue',
+    gps_lat: 'GPS Lat',
+    gps_long: 'GPS Long',
+    area: 'Superficie',
+    location: 'Localisation',
+    status: 'Statut',
+    land_use: 'Affectation',
+    certificate_number: 'Titre foncier',
+    issuing_authority: 'Autorité délivrante',
+    acquisition_type: 'Type d’acquisition',
+    acquisition_act_ref: 'Référence de l’acte',
+    title_date: 'Date du titre',
+    owner_name: 'Propriétaire',
+    owner_id_number: 'Numéro d’identité',
+    company_name: 'Société',
+    rccm: 'RCCM',
+    nif: 'NIF',
+    surveying_pv_ref: 'PV de bornage',
+    surveyor_name: 'Nom du géomètre',
+    surveyor_license: 'Licence du géomètre',
+    cadastral_plan_ref: 'Plan cadastral',
+    servitudes: 'Servitudes',
+    charges: 'Charges',
+    litigation: 'Litiges',
+  };
+  const fieldLabel = (k: string) => fieldLabels[k] || k;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -235,8 +268,16 @@ export default function ParcelDetail({ onNavigate }: Props) {
             </div>
           </div>
 
-          <div className="flex items-center justify-start">
+          <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-gray-700">Étape {step + 1} / {steps.length} — {steps[step]}</span>
+            <div className="flex items-center gap-2">
+              <button disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))} className={`px-3 py-2 rounded-lg border ${step === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
+                <ChevronLeft size={16} /> Préc.
+              </button>
+              <button disabled={step === steps.length - 1} onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} className={`px-3 py-2 rounded-lg border ${step === steps.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
+                Suiv. <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full mt-3">
             <div className="h-2 bg-emerald-600 rounded-full" style={{ width: `${Math.round(((step + 1) / steps.length) * 100)}%` }} />
@@ -355,14 +396,7 @@ export default function ParcelDetail({ onNavigate }: Props) {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 ml-auto shrink-0">
-                    <button disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))} className={`px-3 py-2 rounded-lg border ${step === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
-                      <ChevronLeft size={16} /> Préc.
-                    </button>
-                    <button disabled={step === steps.length - 1} onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))} className={`px-3 py-2 rounded-lg border ${step === steps.length - 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} flex items-center gap-1`}>
-                      Suiv. <ChevronRight size={16} />
-                    </button>
-                  </div>
+                  
                 </div>
               </div>
             </div>
@@ -538,10 +572,17 @@ export default function ParcelDetail({ onNavigate }: Props) {
           <div className="px-6 py-4">
             {secondaryTab === 'history' ? (
               <>
-                <div className="mb-2 flex items-center gap-2">
-                  <input type="date" value={historyDateFrom} onChange={e => setHistoryDateFrom(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer depuis la date" />
-                  <input type="date" value={historyDateTo} onChange={e => setHistoryDateTo(e.target.value)} className="h-9 px-3 border rounded-lg text-xs" aria-label="Filtrer jusqu’à la date" />
-                  <input type="text" value={historyFilterText} onChange={e => setHistoryFilterText(e.target.value)} placeholder="Filtrer par champ" className="flex-1 h-9 px-3 border rounded-lg text-xs" />
+                <div className="mb-1 flex items-center gap-2 flex-wrap md:flex-nowrap">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs"><Filter size={12} /> Filtres</span>
+                  <div className="relative w-[130px] md:w-[150px]">
+                    <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="date" value={historyDateFrom} onChange={e => setHistoryDateFrom(e.target.value)} className="h-8 pl-8 pr-2 border rounded-lg text-xs w-full" aria-label="Filtrer depuis la date" />
+                  </div>
+                  <div className="relative w-[130px] md:w-[150px]">
+                    <Calendar size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input type="date" value={historyDateTo} onChange={e => setHistoryDateTo(e.target.value)} className="h-8 pl-8 pr-2 border rounded-lg text-xs w-full" aria-label="Filtrer jusqu’à la date" />
+                  </div>
+                  <button onClick={() => { setHistoryDateFrom(''); setHistoryDateTo(''); }} className="h-8 px-3 rounded-lg border text-xs hover:bg-gray-50">Effacer</button>
                 </div>
                 <div className="space-y-2 max-h-56 overflow-auto">
                   {history.length === 0 ? (
@@ -551,24 +592,26 @@ export default function ParcelDetail({ onNavigate }: Props) {
                       const d = new Date(h.changed_at)
                       const okFrom = historyDateFrom ? d >= new Date(historyDateFrom) : true
                       const okTo = historyDateTo ? d <= new Date(historyDateTo) : true
-                      let matchText = true
-                      if (historyFilterText.trim()) {
-                        try {
-                          const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>
-                          matchText = Object.keys(obj).some(k => k.toLowerCase().includes(historyFilterText.trim().toLowerCase()))
-                        } catch { matchText = false }
-                      }
-                      return okFrom && okTo && matchText
+                      return okFrom && okTo
                     }).map(h => {
                       let items: string[] = [];
                       try {
                         const obj = JSON.parse(h.changes || '{}') as Record<string, { from: unknown; to: unknown }>;
-                        items = Object.keys(obj).slice(0, 4).map(k => `${k}`);
+                        items = Object.keys(obj).slice(0, 6).map(k => fieldLabel(k));
                       } catch { items = []; }
                       return (
                         <div key={h.id} className="text-xs text-gray-700">
-                          <span className="font-medium">{h.user}</span> — {new Date(h.changed_at).toLocaleString('fr-FR')}
-                          {items.length > 0 && <div className="text-gray-600">Champs modifiés: {items.join(', ')}</div>}
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{h.user}</span>
+                            <span className="text-gray-500">{new Date(h.changed_at).toLocaleString('fr-FR')}</span>
+                          </div>
+                          {items.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {items.map((label) => (
+                                <span key={label} className="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700">{label}</span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })
